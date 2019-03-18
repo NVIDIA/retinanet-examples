@@ -1,0 +1,16 @@
+.git
+.DS_Store
+__pycache__
+*.pyc
+*.o
+*.so
+*.egg-info
+build
+dist
+.vscode
+*.jpg
+!tests/*.jpg
+*.pkl
+*.torch
+*.plan
+

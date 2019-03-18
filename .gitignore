@@ -1,0 +1,16 @@
+.DS_Store
+__pycache__
+*.pyc
+*.o
+*.so
+odtk/tensorrt/src/*.py
+odtk/tensorrt/src/*.cxx
+*.egg-info
+build
+dist
+.vscode
+*.jpg
+!tests/*.jpg
+*.pkl
+*.torch
+*.plan
