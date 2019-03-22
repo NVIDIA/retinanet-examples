@@ -30,9 +30,9 @@
 #include <vector>
 
 #include <cuda.h>
-#include <cooperative_groups.h>
 #include <nvfunctional>
 
+#include <thrust/device_ptr.h>
 #include <thrust/sequence.h>
 #include <thrust/execution_policy.h>
 #include <thrust/gather.h>
