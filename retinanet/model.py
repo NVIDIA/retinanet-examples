@@ -220,7 +220,7 @@ class Model(nn.Module):
         print('Exporting to ONNX...')
         self.exporting = True
         onnx_bytes = io.BytesIO()
-        zero_input = torch.zeros([batch, 3, *size]).cuda()
+        zero_input = torch.zeros([1, 3, *size]).cuda()
         torch.onnx.export(self.cuda(), zero_input, onnx_bytes)
         self.exporting = False
 
