@@ -31,7 +31,7 @@
 
 using namespace nvinfer1;
 
-#define RETINANET_PLUGIN_NAME "RetinaNet_Decode"
+#define RETINANET_PLUGIN_NAME "RetinaNetDecode"
 #define RETINANET_PLUGIN_VERSION "1"
 #define RETINANET_PLUGIN_NAMESPACE ""
 
