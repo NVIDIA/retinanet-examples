@@ -28,10 +28,9 @@
 #include <stdexcept>
 #include <cstdint>
 #include <vector>
+#include <cmath>
 
 #include <cuda.h>
-#include <nvfunctional>
-
 #include <thrust/device_ptr.h>
 #include <thrust/sequence.h>
 #include <thrust/execution_policy.h>
@@ -133,11 +132,11 @@ int nms(int batch_size,
     // Sort scores and corresponding indices
     thrust::gather(thrust::device, indices, indices + num_detections, in_scores, scores);
     thrust::cuda_cub::cub::DeviceRadixSort::SortPairsDescending(workspace, workspace_size,
-      scores, scores_sorted, indices, indices_sorted, count);
+      scores, scores_sorted, indices, indices_sorted, num_detections);
 
     // Launch actual NMS kernel - 1 block with each thread handling n detections
     const int max_threads = 1024;
-    int num_per_thread = num_detections / max_threads + (num_detections % max_threads != 0);
+    int num_per_thread = ceil((float)num_detections / max_threads);
     nms_kernel<<<1, max_threads>>>(num_per_thread, nms_thresh, num_detections, 
       indices_sorted, scores_sorted, in_classes, in_boxes);
 
@@ -146,9 +145,13 @@ int nms(int batch_size,
       scores_sorted, scores, indices_sorted, indices, num_detections);
 
     // Gather filtered scores, boxes, classes
-    cudaMemcpy(out_scores, scores, detections_per_im * sizeof *scores, cudaMemcpyDeviceToDevice);
-    thrust::gather(thrust::device, indices, indices + detections_per_im, in_boxes, out_boxes);
-    thrust::gather(thrust::device, indices, indices + detections_per_im, in_classes, out_classes);
+    num_detections = min(detections_per_im, num_detections);
+    cudaMemcpy(out_scores, scores, num_detections * sizeof *scores, cudaMemcpyDeviceToDevice);
+    if (num_detections < detections_per_im) {
+      thrust::fill_n(thrust::device, out_scores + num_detections, detections_per_im - num_detections, 0);
+    }
+    thrust::gather(thrust::device, indices, indices + num_detections, in_boxes, out_boxes);
+    thrust::gather(thrust::device, indices, indices + num_detections, in_classes, out_classes);
   }
 
   return 0;
