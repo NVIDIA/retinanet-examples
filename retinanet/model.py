@@ -222,7 +222,8 @@ class Model(nn.Module):
         self.exporting = True
         onnx_bytes = io.BytesIO()
         zero_input = torch.zeros([1, 3, *size]).cuda()
-        torch.onnx.export(self.cuda(), zero_input, onnx_bytes, opset_version=None)
+        extra_args = { 'opset_version': opset } if opset else {}
+        torch.onnx.export(self.cuda(), zero_input, onnx_bytes, *extra_args)
         self.exporting = False
 
         if onnx_only:

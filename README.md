@@ -81,8 +81,9 @@ For faster inference, export the detection model to an optimized FP16 TensorRT e
 ```bash
 retinanet export model.pth engine.plan
 ```
+Note: for more recent versions of TensorRT the ONNX opset version should be specified (using `--opset 9` for instance).
 
-Evaluat the model with TensorRT backend on [COCO 2017](http://cocodataset.org/#download):
+Evaluate the model with TensorRT backend on [COCO 2017](http://cocodataset.org/#download):
 ```bash
 retinanet infer engine.plan --images /coco/images/val2017/ --annotations /coco/annotations/instances_val2017.json
 ```
