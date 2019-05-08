@@ -13,8 +13,10 @@ setup(
         extra_compile_args={
             'cxx': ['-std=c++11', '-O2', '-Wall'],
             'nvcc': [
-                '-std=c++11', '--expt-extended-lambda', '--use_fast_math',
-                '-Xcompiler', '-Wall', '-arch=sm_60',
+                '-std=c++11', '--expt-extended-lambda', '--use_fast_math', '-Xcompiler', '-Wall',
+                '-gencode=arch=compute_60,code=sm_60', '-gencode=arch=compute_61,code=sm_61',
+                '-gencode=arch=compute_70,code=sm_70', '-gencode=arch=compute_72,code=sm_72',
+                '-gencode=arch=compute_75,code=sm_75', '-gencode=arch=compute_75,code=compute_75'
             ],
         },
         libraries=['nvinfer', 'nvinfer_plugin', 'nvonnxparser'])

@@ -16,17 +16,10 @@ from .infer import infer
 def train(model, state, path, annotations, val_path, val_annotations, resize, max_size, jitter, batch_size, iterations, val_iterations, mixed_precision, lr, warmup, milestones, gamma, is_master=True, world=1, use_dali=True, verbose=True, metrics_url=None, logdir=None):
     'Train the model on the given dataset'
 
-    '''
-    # Prepare dataset
-    if verbose: print('Preparing dataset...')
-    data_iterator = (DaliDataIterator if use_dali else DataIterator)(
-        path, jitter, max_size, batch_size, model.stride,
-        world, annotations, training=True)
-    if verbose: print(data_iterator)
-    '''
-
     # Prepare model
     nn_model = model
+    stride = model.stride
+
     model = convert_fixedbn_model(model)
     if torch.cuda.is_available():
         model = model.cuda()
@@ -47,22 +40,6 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
     if 'optimizer' in state:
         optimizer.load_state_dict(state['optimizer'])
 
-    '''
-    if mixed_precision:
-        model = fp16_utils.BN_convert_float(model.half())
-    if world > 1:
-        model = DistributedDataParallel(model, delay_allreduce=True)
-    model.train()
-
-    # Setup optimizer and schedule
-    optimizer = SGD(model.parameters(), lr=lr, weight_decay=0.0001, momentum=0.9)    
-    if mixed_precision:
-        optimizer = fp16_utils.FP16_Optimizer(optimizer, static_loss_scale=128., verbose=False)
-    if 'optimizer' in state:
-        optimizer.load_state_dict(state['optimizer'])
-    '''
-
-
     def schedule(train_iter):
         if warmup and train_iter <= warmup:
             return 0.9 * train_iter / warmup + 0.1
@@ -72,7 +49,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
     # Prepare dataset
     if verbose: print('Preparing dataset...')
     data_iterator = (DaliDataIterator if use_dali else DataIterator)(
-        path, jitter, max_size, batch_size, model.module.stride,
+        path, jitter, max_size, batch_size, stride,
         world, annotations, training=True)
     if verbose: print(data_iterator)
 
@@ -99,8 +76,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
 
             # Forward pass
             profiler.start('fw')
-            #if mixed_precision:
-            #    data = data.half()
+
             optimizer.zero_grad()
             cls_loss, box_loss = model([data, target])
             del data
@@ -110,8 +86,6 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
             profiler.start('bw')
             with amp.scale_loss(cls_loss + box_loss, optimizer) as scaled_loss:
                 scaled_loss.backward()
-            #if mixed_precision: optimizer.backward(cls_loss + box_loss)
-            #else: (cls_loss + box_loss).backward()
             optimizer.step()
 
             # Reduce all losses

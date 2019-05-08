@@ -11,11 +11,11 @@ class FocalLoss(nn.Module):
         self.gamma = gamma
 
     def forward(self, pred_logits, target):
-        pred = pred_logits.sigmoid()
-        ce = F.binary_cross_entropy_with_logits(pred_logits, target, reduction='none')
+        pred = pred_logits.float().sigmoid()
+        ce = F.binary_cross_entropy_with_logits(pred_logits, target.float(), reduction='none')
         alpha = target * self.alpha + (1. - target) * (1. - self.alpha)
         pt = torch.where(target == 1,  pred, 1 - pred)
-        return alpha * (1. - pt) ** self.gamma * ce
+        return alpha.float() * (1. - pt) ** self.gamma * ce
 
 class SmoothL1Loss(nn.Module):
     'Smooth L1 Loss'
@@ -25,7 +25,7 @@ class SmoothL1Loss(nn.Module):
         self.beta = beta
 
     def forward(self, pred, target):
-        x = (pred - target).abs()
+        x = (pred.float() - target.float()).abs()
         l1 = x - 0.5 * self.beta
         l2 = 0.5 * x ** 2 / self.beta
         return torch.where(x >= self.beta, l1, l2)

@@ -3,7 +3,7 @@ import json
 import tempfile
 from contextlib import redirect_stdout
 import torch
-from apex.fp16_utils import network_to_half
+from apex import amp
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
@@ -37,8 +37,12 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
     if backend is 'pytorch':
         if torch.cuda.is_available():
             model = model.cuda()
-        if mixed_precision:
-            model = network_to_half(model)
+
+        model = amp.initialize(model, None,
+                               opt_level = 'O2' if mixed_precision else 'O0',
+                               keep_batchnorm_fp32 = True,
+                               verbosity = 0)
+
         model.eval()
 
     if verbose:

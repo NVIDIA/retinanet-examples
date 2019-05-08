@@ -56,12 +56,13 @@ def snap_to_anchors(boxes, size, stride, anchors, num_classes, device):
             torch.zeros([num_anchors, 4, height, width], device=device),
             torch.zeros([num_anchors, 1, height, width], device=device))
 
+    boxes = boxes.float()
     boxes, classes = boxes.split(4, dim=1)
 
     # Generate anchors
     x, y = torch.meshgrid([torch.arange(0, size[i], stride, device=device, dtype=classes.dtype) for i in range(2)])
     xyxy = torch.stack((x, y, x, y), 2).unsqueeze(0)
-    anchors = anchors.view(-1, 1, 1, 4)
+    anchors = anchors.view(-1, 1, 1, 4).to(dtype=classes.dtype)
     anchors = (xyxy + anchors).contiguous().view(-1, 4)
 
     # Compute overlap between boxes and anchors
@@ -107,7 +108,7 @@ def decode(all_cls_head, all_box_head, stride=1, threshold=0.05, top_n=1000, anc
 
     if torch.cuda.is_available():
         return decode_cuda(all_cls_head.float(), all_box_head.float(),
-            anchors.view(-1).tolist(), stride, threshold, top_n)
+            anchors.view(-1).float().tolist(), stride, threshold, top_n)
 
     device = all_cls_head.device
     anchors = anchors.to(device).type(all_cls_head.type())
