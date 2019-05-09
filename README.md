@@ -20,7 +20,7 @@ This is a research project, not an official NVIDIA product.
 
 For best performance, we encourage using the latest [PyTorch NGC docker container](https://ngc.nvidia.com/catalog/containers/nvidia:pytorch):
 ```bash
-nvidia-docker run --rm --ipc=host -it nvcr.io/nvidia/pytorch:19.02-py3
+nvidia-docker run --rm --ipc=host -it nvcr.io/nvidia/pytorch:19.04-py3
 ```
 
 From the container, simply install retinanet using `pip`:
@@ -81,7 +81,7 @@ For faster inference, export the detection model to an optimized FP16 TensorRT e
 ```bash
 retinanet export model.pth engine.plan
 ```
-Note: for more recent versions of TensorRT the ONNX opset version should be specified (using `--opset 9` for instance).
+Note: for older versions of TensorRT (prior to TensorRT 5.1 / 19.03 containers) the ONNX opset version should be specified (using `--opset 8` for instance).
 
 Evaluate the model with TensorRT backend on [COCO 2017](http://cocodataset.org/#download):
 ```bash

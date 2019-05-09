@@ -4,7 +4,7 @@ import torch
 from torch.optim import SGD
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
-from apex import fp16_utils
+from apex import amp, optimizers
 from apex.parallel import DistributedDataParallel
 from .backbones.layers import convert_fixedbn_model
 
@@ -16,28 +16,27 @@ from .infer import infer
 def train(model, state, path, annotations, val_path, val_annotations, resize, max_size, jitter, batch_size, iterations, val_iterations, mixed_precision, lr, warmup, milestones, gamma, is_master=True, world=1, use_dali=True, verbose=True, metrics_url=None, logdir=None):
     'Train the model on the given dataset'
 
-    # Prepare dataset
-    if verbose: print('Preparing dataset...')
-    data_iterator = (DaliDataIterator if use_dali else DataIterator)(
-        path, jitter, max_size, batch_size, model.stride,
-        world, annotations, training=True)
-    if verbose: print(data_iterator)
-
     # Prepare model
     nn_model = model
+    stride = model.stride
+
     model = convert_fixedbn_model(model)
     if torch.cuda.is_available():
         model = model.cuda()
-    if mixed_precision:
-        model = fp16_utils.BN_convert_float(model.half())
-    if world > 1:
-        model = DistributedDataParallel(model, delay_allreduce=True)
-    model.train()
 
     # Setup optimizer and schedule
-    optimizer = SGD(model.parameters(), lr=lr, weight_decay=0.0001, momentum=0.9)    
-    if mixed_precision:
-        optimizer = fp16_utils.FP16_Optimizer(optimizer, static_loss_scale=128., verbose=False)
+    optimizer = SGD(model.parameters(), lr=lr, weight_decay=0.0001, momentum=0.9) 
+
+    model, optimizer = amp.initialize(model, optimizer,
+                                      opt_level = 'O2' if mixed_precision else 'O0',
+                                      keep_batchnorm_fp32 = True,
+                                      loss_scale = 128.0,
+                                      verbosity = is_master)
+
+    if world > 1: 
+        model = DistributedDataParallel(model)
+    model.train()
+
     if 'optimizer' in state:
         optimizer.load_state_dict(state['optimizer'])
 
@@ -46,6 +45,14 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
             return 0.9 * train_iter / warmup + 0.1
         return gamma ** len([m for m in milestones if m <= train_iter])
     scheduler = LambdaLR(optimizer.optimizer if mixed_precision else optimizer, schedule)
+
+    # Prepare dataset
+    if verbose: print('Preparing dataset...')
+    data_iterator = (DaliDataIterator if use_dali else DataIterator)(
+        path, jitter, max_size, batch_size, stride,
+        world, annotations, training=True)
+    if verbose: print(data_iterator)
+
 
     if verbose:
         print('    device: {} {}'.format(
@@ -69,8 +76,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
 
             # Forward pass
             profiler.start('fw')
-            if mixed_precision:
-                data = data.half()
+
             optimizer.zero_grad()
             cls_loss, box_loss = model([data, target])
             del data
@@ -78,8 +84,8 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
 
             # Backward pass
             profiler.start('bw')
-            if mixed_precision: optimizer.backward(cls_loss + box_loss)
-            else: (cls_loss + box_loss).backward()
+            with amp.scale_loss(cls_loss + box_loss, optimizer) as scaled_loss:
+                scaled_loss.backward()
             optimizer.step()
 
             # Reduce all losses
@@ -143,7 +149,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
                 del cls_losses[:], box_losses[:]
 
             if val_annotations and (iteration == iterations or iteration % val_iterations == 0):
-                infer(nn_model, val_path, None, resize, max_size, batch_size, annotations=val_annotations,
+                infer(model, val_path, None, resize, max_size, batch_size, annotations=val_annotations,
                     mixed_precision=mixed_precision, is_master=is_master, world=world, use_dali=use_dali, verbose=False)
                 model.train()
 
@@ -152,4 +158,5 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
 
     if logdir is not None:
         writer.close()
+
 

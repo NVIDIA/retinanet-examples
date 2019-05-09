@@ -61,7 +61,7 @@ def snap_to_anchors(boxes, size, stride, anchors, num_classes, device):
     # Generate anchors
     x, y = torch.meshgrid([torch.arange(0, size[i], stride, device=device, dtype=classes.dtype) for i in range(2)])
     xyxy = torch.stack((x, y, x, y), 2).unsqueeze(0)
-    anchors = anchors.view(-1, 1, 1, 4)
+    anchors = anchors.view(-1, 1, 1, 4).to(dtype=classes.dtype)
     anchors = (xyxy + anchors).contiguous().view(-1, 4)
 
     # Compute overlap between boxes and anchors

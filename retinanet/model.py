@@ -108,7 +108,7 @@ class Model(nn.Module):
         box_heads = [self.box_head(t) for t in features]
 
         if self.training:
-            return self._compute_loss(x, cls_heads, box_heads, targets)
+            return self._compute_loss(x, cls_heads, box_heads, targets.float())
 
         cls_heads = [cls_head.sigmoid() for cls_head in cls_heads]
 
@@ -206,8 +206,8 @@ class Model(nn.Module):
     def export(self, size, batch, precision, calibration_files, calibration_table, verbose, onnx_only=False, opset=None):
         import torch.onnx.symbolic
 
-        if opset is None or opset < 9:
-            # Override Upsample's ONNX export until new opset is supported
+        if opset is not None and opset < 9:
+            # Override Upsample's ONNX export from old opset if required (not needed for TRT 5.1+)
             @torch.onnx.symbolic.parse_args('v', 'is')
             def upsample_nearest2d(g, input, output_size):
                 height_scale = float(output_size[-2]) / input.type().sizes()[-2]
