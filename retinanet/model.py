@@ -108,7 +108,7 @@ class Model(nn.Module):
         box_heads = [self.box_head(t) for t in features]
 
         if self.training:
-            return self._compute_loss(x, cls_heads, box_heads, targets)
+            return self._compute_loss(x, cls_heads, box_heads, targets.float())
 
         cls_heads = [cls_head.sigmoid() for cls_head in cls_heads]
 
