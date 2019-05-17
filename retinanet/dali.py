@@ -25,7 +25,7 @@ class COCOPipeline(pipeline.Pipeline):
         self.reader = ops.COCOReader(annotations_file=annotations, file_root=path, num_shards=world,shard_id=torch.cuda.current_device(), ltrb=True, ratio=True, shuffle_after_epoch=True, save_img_ids=True)
         self.decode_train = ops.nvJPEGDecoderSlice(device="mixed", output_type=types.RGB)
         self.decode_infer = ops.nvJPEGDecoder(device="mixed", output_type=types.RGB)
-        self.bbox_crop = ops.RandomBBoxCrop(device='cpu', ltrb=True, scaling=[0.3, 1.0], thresholds=[0.3,0.5,0.7,0.9])
+        self.bbox_crop = ops.RandomBBoxCrop(device='cpu', ltrb=True, scaling=[0.3, 1.0], thresholds=[0.1,0.3,0.5,0.7,0.9])
 
         self.bbox_flip = ops.BbFlip(device='cpu', ltrb=True)
         self.img_flip = ops.Flip(device='gpu')
@@ -34,11 +34,13 @@ class COCOPipeline(pipeline.Pipeline):
         self.rand1 = ops.Uniform(range=[0.5, 1.5])
         self.rand2 = ops.Uniform(range=[0.875, 1.125])
         self.rand3 = ops.Uniform(range=[-0.5, 0.5])
+        #self.rand4 = ops.Uniform(range=[800., 1280.])
         self.twist = ops.ColorTwist(device='gpu')
 
-        self.resize = ops.Resize(device='gpu', interp_type=types.DALIInterpType.INTERP_TRIANGULAR, resize_longer=max_size, save_attrs=True)
+        #self.resize_train = ops.Resize(device='gpu', interp_type=types.DALIInterpType.INTERP_TRIANGULAR, save_attrs=True)
+        self.resize_infer = ops.Resize(device='gpu', interp_type=types.DALIInterpType.INTERP_TRIANGULAR, resize_longer=max_size, save_attrs=True)
         self.pad = ops.Paste(device='gpu', fill_value = 0, ratio=1.1, min_canvas_size=max_size, paste_x=0, paste_y=0)
-        self.normalize = ops.CropMirrorNormalize(device='gpu', mean=mean, std=std, crop=max_size)
+        self.normalize = ops.CropMirrorNormalize(device='gpu', mean=mean, std=std, crop=max_size, crop_pos_x=0, crop_pos_y=0)
 
     def define_graph(self):
 
@@ -48,21 +50,25 @@ class COCOPipeline(pipeline.Pipeline):
             crop_begin, crop_size, bboxes, labels = self.bbox_crop(bboxes, labels)
             images = self.decode_train(images, crop_begin, crop_size)
             #images=self.decode_infer(images)
-        else:
-            images = self.decode_infer(images)
+            #resize = self.rand4()
+            #images, attrs = self.resize_train(images, resize_longer=resize)
+            images, attrs = self.resize_infer(images)
 
-        images, attrs = self.resize(images)
-
-        if self.training:
             saturation = self.rand1()
             contrast = self.rand1()
             brightness = self.rand2()
             hue = self.rand3()
             images = self.twist(images, saturation=saturation, contrast=contrast, brightness=brightness, hue=hue)
-            
+
             flip = self.coin_flip()
             bboxes = self.bbox_flip(bboxes, horizontal=flip)
             images = self.img_flip(images, horizontal=flip)
+
+
+        else:
+            images = self.decode_infer(images)
+            images, attrs = self.resize_infer(images)
+
 
         images = self.normalize(self.pad(images))
 
@@ -169,10 +175,3 @@ class DaliDataIterator():
                 ratios = torch.Tensor(ratios).cuda(non_blocking=True)
 
                 yield data, ids, ratios
-
-
-
-
-
-
-
