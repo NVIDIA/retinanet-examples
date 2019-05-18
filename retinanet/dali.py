@@ -34,11 +34,11 @@ class COCOPipeline(pipeline.Pipeline):
         self.rand1 = ops.Uniform(range=[0.5, 1.5])
         self.rand2 = ops.Uniform(range=[0.875, 1.125])
         self.rand3 = ops.Uniform(range=[-0.5, 0.5])
-        #self.rand4 = ops.Uniform(range=[800., 1280.])
+        self.rand4 = ops.Uniform(range=[float(max(resize)), float(max_size)])
         self.twist = ops.ColorTwist(device='gpu')
 
-        #self.resize_train = ops.Resize(device='gpu', interp_type=types.DALIInterpType.INTERP_TRIANGULAR, save_attrs=True)
-        self.resize_infer = ops.Resize(device='gpu', interp_type=types.DALIInterpType.INTERP_TRIANGULAR, resize_longer=max_size, save_attrs=True)
+        self.resize_train = ops.Resize(device='gpu', interp_type=types.DALIInterpType.INTERP_CUBIC, save_attrs=True)
+        self.resize_infer = ops.Resize(device='gpu', interp_type=types.DALIInterpType.INTERP_CUBIC, resize_longer=max_size, save_attrs=True)
         self.pad = ops.Paste(device='gpu', fill_value = 0, ratio=1.1, min_canvas_size=max_size, paste_x=0, paste_y=0)
         self.normalize = ops.CropMirrorNormalize(device='gpu', mean=mean, std=std, crop=max_size, crop_pos_x=0, crop_pos_y=0)
 
@@ -50,9 +50,9 @@ class COCOPipeline(pipeline.Pipeline):
             crop_begin, crop_size, bboxes, labels = self.bbox_crop(bboxes, labels)
             images = self.decode_train(images, crop_begin, crop_size)
             #images=self.decode_infer(images)
-            #resize = self.rand4()
-            #images, attrs = self.resize_train(images, resize_longer=resize)
-            images, attrs = self.resize_infer(images)
+            resize = self.rand4()
+            images, attrs = self.resize_train(images, resize_longer=resize)
+            #images, attrs = self.resize_infer(images)
 
             saturation = self.rand1()
             contrast = self.rand1()
@@ -69,10 +69,10 @@ class COCOPipeline(pipeline.Pipeline):
             images = self.decode_infer(images)
             images, attrs = self.resize_infer(images)
 
-
+        resized_images = images
         images = self.normalize(self.pad(images))
 
-        return images, bboxes, labels, img_ids, attrs
+        return images, bboxes, labels, img_ids, attrs, resized_images
 
 
 class DaliDataIterator():
@@ -114,7 +114,7 @@ class DaliDataIterator():
         for _ in range(self.__len__()):
 
             data, ratios, ids, num_detections = [], [], [], []
-            dali_data, dali_boxes, dali_labels, dali_ids, dali_attrs = self.pipe.run()
+            dali_data, dali_boxes, dali_labels, dali_ids, dali_attrs, dali_resize_img = self.pipe.run()
 
             for l in range(len(dali_boxes)):
                 num_detections.append(dali_boxes.at(l).shape[0])
@@ -133,8 +133,10 @@ class DaliDataIterator():
                 c_type_pointer = ctypes.c_void_p(datum.data_ptr())
                 dali_tensor.copy_to_external(c_type_pointer)
 
+                # Calculate image resize ratio to rescale boxes
                 prior_size = dali_attrs.as_cpu().at(batch)
-                ratio = self.max_size / max(prior_size)
+                resized_size = dali_resize_img.at(batch).shape()
+                ratio = max(resized_size) / max(prior_size)
 
                 if self.training:
                     # Rescale boxes
