@@ -34,7 +34,8 @@ class COCOPipeline(pipeline.Pipeline):
         self.rand1 = ops.Uniform(range=[0.5, 1.5])
         self.rand2 = ops.Uniform(range=[0.875, 1.125])
         self.rand3 = ops.Uniform(range=[-0.5, 0.5])
-        self.rand4 = ops.Uniform(range=[float(max(resize)), float(max_size)])
+        if isinstance(resize, list): resize = max(resize)
+        self.rand4 = ops.Uniform(range=[float(resize), float(max_size)])
         self.twist = ops.ColorTwist(device='gpu')
 
         self.resize_train = ops.Resize(device='gpu', interp_type=types.DALIInterpType.INTERP_CUBIC, save_attrs=True)
