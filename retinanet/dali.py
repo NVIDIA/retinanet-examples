@@ -25,7 +25,7 @@ class COCOPipeline(pipeline.Pipeline):
         self.reader = ops.COCOReader(annotations_file=annotations, file_root=path, num_shards=world,shard_id=torch.cuda.current_device(), ltrb=True, ratio=True, shuffle_after_epoch=True, save_img_ids=True)
         self.decode_train = ops.nvJPEGDecoderSlice(device="mixed", output_type=types.RGB)
         self.decode_infer = ops.nvJPEGDecoder(device="mixed", output_type=types.RGB)
-        self.bbox_crop = ops.RandomBBoxCrop(device='cpu', ltrb=True, scaling=[0.6, 1.0], thresholds=[0.1,0.3,0.5,0.7,0.9])
+        self.bbox_crop = ops.RandomBBoxCrop(device='cpu', ltrb=True, scaling=[0.6, 1.0], thresholds=[0.5])
 
         self.bbox_flip = ops.BbFlip(device='cpu', ltrb=True)
         self.img_flip = ops.Flip(device='gpu')
