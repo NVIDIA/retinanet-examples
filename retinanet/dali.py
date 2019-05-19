@@ -51,9 +51,9 @@ class COCOPipeline(pipeline.Pipeline):
             crop_begin, crop_size, bboxes, labels = self.bbox_crop(bboxes, labels)
             images = self.decode_train(images, crop_begin, crop_size)
             #images=self.decode_infer(images)
-            resize = self.rand4()
-            images, attrs = self.resize_train(images, resize_longer=resize)
-            #images, attrs = self.resize_infer(images)
+            #resize = self.rand4()
+            #images, attrs = self.resize_train(images, resize_longer=resize)
+            images, attrs = self.resize_infer(images)
 
             saturation = self.rand1()
             contrast = self.rand1()
