@@ -25,7 +25,7 @@ class COCOPipeline(pipeline.Pipeline):
         self.reader = ops.COCOReader(annotations_file=annotations, file_root=path, num_shards=world,shard_id=torch.cuda.current_device(), ltrb=True, ratio=True, shuffle_after_epoch=True, save_img_ids=True)
         self.decode_train = ops.nvJPEGDecoderSlice(device="mixed", output_type=types.RGB)
         self.decode_infer = ops.nvJPEGDecoder(device="mixed", output_type=types.RGB)
-        self.bbox_crop = ops.RandomBBoxCrop(device='cpu', ltrb=True, scaling=[0.6, 1.0], thresholds=[0.5])
+        self.bbox_crop = ops.RandomBBoxCrop(device='cpu', ltrb=True, scaling=[0.3, 1.0], thresholds=[0.1,0.3,0.5,0.7,0.9])
 
         self.bbox_flip = ops.BbFlip(device='cpu', ltrb=True)
         self.img_flip = ops.Flip(device='gpu')
@@ -35,7 +35,7 @@ class COCOPipeline(pipeline.Pipeline):
         self.rand2 = ops.Uniform(range=[0.875, 1.125])
         self.rand3 = ops.Uniform(range=[-0.5, 0.5])
         if isinstance(resize, list): resize = max(resize)
-        self.rand4 = ops.Uniform(range=[float(resize), float(max_size)])
+        self.rand4 = ops.Uniform(range=[800, float(max_size)])
         self.twist = ops.ColorTwist(device='gpu')
 
         self.resize_train = ops.Resize(device='gpu', interp_type=types.DALIInterpType.INTERP_CUBIC, save_attrs=True)
@@ -51,15 +51,15 @@ class COCOPipeline(pipeline.Pipeline):
             crop_begin, crop_size, bboxes, labels = self.bbox_crop(bboxes, labels)
             images = self.decode_train(images, crop_begin, crop_size)
             #images=self.decode_infer(images)
-            #resize = self.rand4()
-            #images, attrs = self.resize_train(images, resize_longer=resize)
-            images, attrs = self.resize_infer(images)
+            resize = self.rand4()
+            images, attrs = self.resize_train(images, resize_longer=resize)
+            #images, attrs = self.resize_infer(images)
 
             saturation = self.rand1()
             contrast = self.rand1()
             brightness = self.rand2()
             hue = self.rand3()
-            images = self.twist(images, saturation=saturation, contrast=contrast, brightness=brightness, hue=hue)
+            #images = self.twist(images, saturation=saturation, contrast=contrast, brightness=brightness, hue=hue)
 
             flip = self.coin_flip()
             bboxes = self.bbox_flip(bboxes, horizontal=flip)
