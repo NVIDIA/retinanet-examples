@@ -104,6 +104,8 @@ int nms(int batch_size,
     return workspace_size;
   }
 
+  auto on_stream = thrust::cuda::par.on(stream);
+
   auto flags = get_next_ptr<bool>(count, workspace, workspace_size);
   auto indices = get_next_ptr<int>(count, workspace, workspace_size);
   auto indices_sorted = get_next_ptr<int>(count, workspace, workspace_size);
@@ -120,40 +122,41 @@ int nms(int batch_size,
     auto out_classes = static_cast<float *>(outputs[2]) + batch * detections_per_im;
     
     // Discard null scores
-    thrust::transform(thrust::device, in_scores, in_scores + count,
+    thrust::transform(on_stream, in_scores, in_scores + count,
       flags, thrust::placeholders::_1 > 0.0f);
 
-    int *num_selected = reinterpret_cast<int *>(scores);
+    int *num_selected = reinterpret_cast<int *>(indices_sorted);
     thrust::cuda_cub::cub::DeviceSelect::Flagged(workspace, workspace_size,
       thrust::cuda_cub::cub::CountingInputIterator<int>(0),
-      flags, indices, num_selected, count);
+      flags, indices, num_selected, count, stream);
+    cudaStreamSynchronize(stream);
     int num_detections = *thrust::device_pointer_cast(num_selected);
 
     // Sort scores and corresponding indices
-    thrust::gather(thrust::device, indices, indices + num_detections, in_scores, scores);
+    thrust::gather(on_stream, indices, indices + num_detections, in_scores, scores);
     thrust::cuda_cub::cub::DeviceRadixSort::SortPairsDescending(workspace, workspace_size,
-      scores, scores_sorted, indices, indices_sorted, num_detections);
+      scores, scores_sorted, indices, indices_sorted, num_detections, 0, sizeof(*scores)*8, stream);
 
     // Launch actual NMS kernel - 1 block with each thread handling n detections
     const int max_threads = 1024;
     int num_per_thread = ceil((float)num_detections / max_threads);
-    nms_kernel<<<1, max_threads>>>(num_per_thread, nms_thresh, num_detections, 
+    nms_kernel<<<1, max_threads, 0, stream>>>(num_per_thread, nms_thresh, num_detections,
       indices_sorted, scores_sorted, in_classes, in_boxes);
 
     // Re-sort with updated scores
     thrust::cuda_cub::cub::DeviceRadixSort::SortPairsDescending(workspace, workspace_size,
-      scores_sorted, scores, indices_sorted, indices, num_detections);
+      scores_sorted, scores, indices_sorted, indices, num_detections, 0, sizeof(*scores)*8, stream);
 
     // Gather filtered scores, boxes, classes
     num_detections = min(detections_per_im, num_detections);
-    cudaMemcpy(out_scores, scores, num_detections * sizeof *scores, cudaMemcpyDeviceToDevice);
+    cudaMemcpyAsync(out_scores, scores, num_detections * sizeof *scores, cudaMemcpyDeviceToDevice, stream);
     if (num_detections < detections_per_im) {
-      thrust::fill_n(thrust::device, out_scores + num_detections, detections_per_im - num_detections, 0);
+      thrust::fill_n(on_stream, out_scores + num_detections, detections_per_im - num_detections, 0);
     }
-    thrust::gather(thrust::device, indices, indices + num_detections, in_boxes, out_boxes);
-    thrust::gather(thrust::device, indices, indices + num_detections, in_classes, out_classes);
+    thrust::gather(on_stream, indices, indices + num_detections, in_boxes, out_boxes);
+    thrust::gather(on_stream, indices, indices + num_detections, in_classes, out_classes);
   }
-
+  
   return 0;
 }
 
