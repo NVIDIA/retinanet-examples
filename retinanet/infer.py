@@ -3,7 +3,8 @@ import json
 import tempfile
 from contextlib import redirect_stdout
 import torch
-from apex.fp16_utils import network_to_half
+from apex import amp
+from apex.parallel import DistributedDataParallel as DDP
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
@@ -15,7 +16,9 @@ from .utils import Profiler
 def infer(model, path, detections_file, resize, max_size, batch_size, mixed_precision=True, is_master=True, world=0, annotations=None, use_dali=True, verbose=True):
     'Run inference on images from path'
 
-    backend = 'pytorch' if isinstance(model, Model) else 'tensorrt'
+    backend = 'pytorch' if isinstance(model, Model) or isinstance(model, DDP) else 'tensorrt'
+
+    stride = model.module.stride if isinstance(model, DDP) else model.stride
 
     # Create annotations if none was provided
     if not annotations:
@@ -29,16 +32,20 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
     # Prepare dataset
     if verbose: print('Preparing dataset...')
     data_iterator = (DaliDataIterator if use_dali else DataIterator)(
-        path, resize, max_size, batch_size, model.stride,
+        path, resize, max_size, batch_size, stride,
         world, annotations, training=False)
     if verbose: print(data_iterator)
 
     # Prepare model
     if backend is 'pytorch':
-        if torch.cuda.is_available():
-            model = model.cuda()
-        if mixed_precision:
-            model = network_to_half(model)
+        if not isinstance(model, DDP):
+
+            if torch.cuda.is_available(): model = model.cuda()
+            model = amp.initialize(model, None,
+                               opt_level = 'O2' if mixed_precision else 'O0',
+                               keep_batchnorm_fp32 = True,
+                               verbosity = 0)
+
         model.eval()
 
     if verbose:
