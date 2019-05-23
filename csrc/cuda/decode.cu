@@ -100,18 +100,19 @@ int decode(int batch_size,
     int num_detections = *thrust::device_pointer_cast(num_selected);
 
     // Only keep top n scores
+    auto indices_filtered = indices;
     if (num_detections > top_n) {
       thrust::gather(on_stream, indices, indices + num_detections,
         in_scores, scores);
       thrust::cuda_cub::cub::DeviceRadixSort::SortPairsDescending(workspace, workspace_size,
         scores, scores_sorted, indices, indices_sorted, num_detections, 0, sizeof(*scores)*8, stream);
-        indices = indices_sorted;
+        indices_filtered = indices_sorted;
         num_detections = top_n;
     }
 
     // Gather boxes
     bool has_anchors = !anchors.empty();
-    thrust::transform(on_stream, indices, indices + num_detections,
+    thrust::transform(on_stream, indices_filtered, indices_filtered + num_detections,
       thrust::make_zip_iterator(thrust::make_tuple(out_scores, out_boxes, out_classes)),
       [=] __device__ (int i) {
         int x = i % width;
