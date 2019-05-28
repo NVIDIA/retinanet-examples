@@ -4,11 +4,8 @@ from math import ceil
 import ctypes
 import numpy as np
 import torch
-import torch.nn.functional as F
 import numpy as np
-import random
 from nvidia.dali import pipeline, ops, types
-from nvidia.dali.plugin.pytorch import feed_ndarray
 from pycocotools.coco import COCO
 
 class COCOPipeline(pipeline.Pipeline):
@@ -22,7 +19,9 @@ class COCOPipeline(pipeline.Pipeline):
         self.coco = coco
         self.iter = 0
 
-        self.reader = ops.COCOReader(annotations_file=annotations, file_root=path, num_shards=world,shard_id=torch.cuda.current_device(), ltrb=True, ratio=True, shuffle_after_epoch=True, save_img_ids=True)
+        self.reader = ops.COCOReader(annotations_file=annotations, file_root=path, num_shards=world,shard_id=torch.cuda.current_device(), 
+                                     ltrb=True, ratio=True, shuffle_after_epoch=True, save_img_ids=True)
+
         self.decode_train = ops.nvJPEGDecoderSlice(device="mixed", output_type=types.RGB)
         self.decode_infer = ops.nvJPEGDecoder(device="mixed", output_type=types.RGB)
         self.bbox_crop = ops.RandomBBoxCrop(device='cpu', ltrb=True, scaling=[0.3, 1.0], thresholds=[0.1,0.3,0.5,0.7,0.9])
@@ -31,12 +30,8 @@ class COCOPipeline(pipeline.Pipeline):
         self.img_flip = ops.Flip(device='gpu')
         self.coin_flip = ops.CoinFlip(probability=0.5)
 
-        self.rand1 = ops.Uniform(range=[0.5, 1.5])
-        self.rand2 = ops.Uniform(range=[0.875, 1.125])
-        self.rand3 = ops.Uniform(range=[-0.5, 0.5])
         if isinstance(resize, list): resize = max(resize)
-        self.rand4 = ops.Uniform(range=[800, float(max_size)])
-        self.twist = ops.ColorTwist(device='gpu')
+        self.rand_resize = ops.Uniform(range=[resize, float(max_size)])
 
         self.resize_train = ops.Resize(device='gpu', interp_type=types.DALIInterpType.INTERP_CUBIC, save_attrs=True)
         self.resize_infer = ops.Resize(device='gpu', interp_type=types.DALIInterpType.INTERP_CUBIC, resize_longer=max_size, save_attrs=True)
@@ -50,21 +45,12 @@ class COCOPipeline(pipeline.Pipeline):
         if self.training:
             crop_begin, crop_size, bboxes, labels = self.bbox_crop(bboxes, labels)
             images = self.decode_train(images, crop_begin, crop_size)
-            #images=self.decode_infer(images)
-            resize = self.rand4()
+            resize = self.rand_resize()
             images, attrs = self.resize_train(images, resize_longer=resize)
-            #images, attrs = self.resize_infer(images)
-
-            saturation = self.rand1()
-            contrast = self.rand1()
-            brightness = self.rand2()
-            hue = self.rand3()
-            #images = self.twist(images, saturation=saturation, contrast=contrast, brightness=brightness, hue=hue)
 
             flip = self.coin_flip()
             bboxes = self.bbox_flip(bboxes, horizontal=flip)
             images = self.img_flip(images, horizontal=flip)
-
 
         else:
             images = self.decode_infer(images)
@@ -98,7 +84,8 @@ class DaliDataIterator():
             self.categories_inv = { k: i for i, k in enumerate(self.coco.getCatIds()) }
 
         self.pipe = COCOPipeline(batch_size=self.batch_size, num_threads=2, 
-            path=path, coco=self.coco, training=training, annotations=annotations, world=world, device_id = torch.cuda.current_device(), mean=self.mean, std=self.std, resize=resize, max_size=max_size)
+            path=path, coco=self.coco, training=training, annotations=annotations, world=world, 
+            device_id = torch.cuda.current_device(), mean=self.mean, std=self.std, resize=resize, max_size=max_size)
 
         self.pipe.build()
 
@@ -124,7 +111,6 @@ class DaliDataIterator():
 
             for batch in range(self.batch_size):
                 id = int(dali_ids.at(batch)[0])
-                if id < 0: break
                 
                 # Convert dali tensor to pytorch
                 dali_tensor = dali_data.at(batch)
