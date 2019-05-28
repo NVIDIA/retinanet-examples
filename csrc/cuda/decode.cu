@@ -70,7 +70,9 @@ int decode(int batch_size,
   }
 
   auto anchors_d = get_next_ptr<float>(anchors.size(), workspace, workspace_size);
-  cudaMemcpy(anchors_d, anchors.data(), anchors.size() * sizeof *anchors_d, cudaMemcpyHostToDevice);
+  cudaMemcpyAsync(anchors_d, anchors.data(), anchors.size() * sizeof *anchors_d, cudaMemcpyHostToDevice, stream);
+
+  auto on_stream = thrust::cuda::par.on(stream);
 
   auto flags = get_next_ptr<bool>(scores_size, workspace, workspace_size);
   auto indices = get_next_ptr<int>(scores_size, workspace, workspace_size);
@@ -87,28 +89,30 @@ int decode(int batch_size,
     auto out_classes = static_cast<float *>(outputs[2]) + batch * top_n;
 
     // Discard scores below threshold
-    thrust::transform(thrust::device, in_scores, in_scores + scores_size,
+    thrust::transform(on_stream, in_scores, in_scores + scores_size,
       flags, thrust::placeholders::_1 > score_thresh);
 
-    int *num_selected = reinterpret_cast<int *>(scores);
+    int *num_selected = reinterpret_cast<int *>(indices_sorted);
     thrust::cuda_cub::cub::DeviceSelect::Flagged(workspace, workspace_size,
       thrust::cuda_cub::cub::CountingInputIterator<int>(0),
-      flags, indices, num_selected, scores_size);
+      flags, indices, num_selected, scores_size, stream);
+    cudaStreamSynchronize(stream);
     int num_detections = *thrust::device_pointer_cast(num_selected);
 
     // Only keep top n scores
+    auto indices_filtered = indices;
     if (num_detections > top_n) {
-      thrust::gather(thrust::device, indices, indices + num_detections,
+      thrust::gather(on_stream, indices, indices + num_detections,
         in_scores, scores);
       thrust::cuda_cub::cub::DeviceRadixSort::SortPairsDescending(workspace, workspace_size,
-        scores, scores_sorted, indices, indices_sorted, num_detections);
-        indices = indices_sorted;
+        scores, scores_sorted, indices, indices_sorted, num_detections, 0, sizeof(*scores)*8, stream);
+        indices_filtered = indices_sorted;
         num_detections = top_n;
     }
 
     // Gather boxes
     bool has_anchors = !anchors.empty();
-    thrust::transform(thrust::device, indices, indices + num_detections,
+    thrust::transform(on_stream, indices_filtered, indices_filtered + num_detections,
       thrust::make_zip_iterator(thrust::make_tuple(out_scores, out_boxes, out_classes)),
       [=] __device__ (int i) {
         int x = i % width;
@@ -152,9 +156,9 @@ int decode(int batch_size,
 
     // Zero-out unused scores
     if (num_detections < top_n) {
-      thrust::fill(thrust::device, out_scores + num_detections,
+      thrust::fill(on_stream, out_scores + num_detections,
         out_scores + top_n, 0.0f);
-      thrust::fill(thrust::device, out_classes + num_detections,
+      thrust::fill(on_stream, out_classes + num_detections,
         out_classes + top_n, 0.0f);
     }
   }
