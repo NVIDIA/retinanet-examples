@@ -20,7 +20,7 @@ This is a research project, not an official NVIDIA product.
 
 For best performance, we encourage using the latest [PyTorch NGC docker container](https://ngc.nvidia.com/catalog/containers/nvidia:pytorch):
 ```bash
-nvidia-docker run --rm --ipc=host -it nvcr.io/nvidia/pytorch:19.04-py3
+nvidia-docker run --rm --ipc=host -it nvcr.io/nvidia/pytorch:19.05-py3
 ```
 
 From the container, simply install retinanet using `pip`:
