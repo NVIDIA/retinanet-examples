@@ -4,6 +4,7 @@ from math import ceil
 import ctypes
 import numpy as np
 import torch
+import torch.nn.functional as F
 import numpy as np
 from nvidia.dali import pipeline, ops, types
 from pycocotools.coco import COCO
@@ -153,6 +154,10 @@ class DaliDataIterator():
                 ratios.append(ratio)
 
             data = torch.cat(data, dim=0)
+
+            # Apply padding according to model stride
+            pw, ph = ((self.stride - d % self.stride) % self.stride for d in data.size()[-2:])
+            data = F.pad(data, (0, pw, 0, ph))
 
             if self.training:
                 pyt_targets = pyt_targets.cuda(non_blocking=True)
