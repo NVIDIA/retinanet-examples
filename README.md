@@ -20,7 +20,7 @@ This is a research project, not an official NVIDIA product.
 
 For best performance, we encourage using the latest [PyTorch NGC docker container](https://ngc.nvidia.com/catalog/containers/nvidia:pytorch):
 ```bash
-nvidia-docker run --rm --ipc=host -it nvcr.io/nvidia/pytorch:19.04-py3
+nvidia-docker run --rm --ipc=host -it nvcr.io/nvidia/pytorch:19.05-py3
 ```
 
 From the container, simply install retinanet using `pip`:
@@ -52,7 +52,7 @@ retinanet train retinanet_rn50fpn.pth --backbone ResNet50FPN \
 
 ### Fine Tuning
 
-Fine tune a pre-trained model on [your dataset](#datasets), here we'll use [Pascal VOC](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/index.html) using [JSON annotations](https://storage.googleapis.com/coco-dataset/external/PASCAL_VOC.zip):
+Fine-tune a pre-trained model on your dataset. In the example below we use [Pascal VOC](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/index.html) with [JSON annotations](https://storage.googleapis.com/coco-dataset/external/PASCAL_VOC.zip):
 ```bash
 retinanet train model_mydataset.pth \
     --fine-tune retinanet_rn50fpn.pth \
