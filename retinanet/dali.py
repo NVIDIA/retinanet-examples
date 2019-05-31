@@ -36,8 +36,11 @@ class COCOPipeline(pipeline.Pipeline):
 
         self.resize_train = ops.Resize(device='gpu', interp_type=types.DALIInterpType.INTERP_CUBIC, save_attrs=True)
         self.resize_infer = ops.Resize(device='gpu', interp_type=types.DALIInterpType.INTERP_CUBIC, resize_longer=max_size, save_attrs=True)
-        self.pad = ops.Paste(device='gpu', fill_value = 0, ratio=1.1, min_canvas_size=max_size, paste_x=0, paste_y=0)
-        self.normalize = ops.CropMirrorNormalize(device='gpu', mean=mean, std=std, crop=max_size, crop_pos_x=0, crop_pos_y=0)
+
+        padded_size = max_size + ((self.stride - d % self.stride) % self.stride)
+
+        self.pad = ops.Paste(device='gpu', fill_value = 0, ratio=1.1, min_canvas_size=padded_size, paste_x=0, paste_y=0)
+        self.normalize = ops.CropMirrorNormalize(device='gpu', mean=mean, std=std, crop=padded_size, crop_pos_x=0, crop_pos_y=0)
 
     def define_graph(self):
 
@@ -154,10 +157,6 @@ class DaliDataIterator():
                 ratios.append(ratio)
 
             data = torch.cat(data, dim=0)
-
-            # Apply padding according to model stride
-            pw, ph = ((self.stride - d % self.stride) % self.stride for d in data.size()[-2:])
-            data = F.pad(data, (0, pw, 0, ph))
 
             if self.training:
                 pyt_targets = pyt_targets.cuda(non_blocking=True)
