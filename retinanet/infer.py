@@ -13,7 +13,7 @@ from .dali import DaliDataIterator
 from .model import Model
 from .utils import Profiler
 
-def infer(model, path, detections_file, resize, max_size, batch_size, mixed_precision=True, is_master=True, world=0, annotations=None, use_dali=True, verbose=True):
+def infer(model, path, detections_file, resize, max_size, batch_size, mixed_precision=True, is_master=True, world=0, annotations=None, use_dali=True, is_validation=False, verbose=True):
     'Run inference on images from path'
 
     backend = 'pytorch' if isinstance(model, Model) or isinstance(model, DDP) else 'tensorrt'
@@ -38,8 +38,9 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
 
     # Prepare model
     if backend is 'pytorch':
-        if not isinstance(model, DDP):
-
+        # If we are doing validation during training,
+        # no need to register model with AMP again
+        if not is_validation:
             if torch.cuda.is_available(): model = model.cuda()
             model = amp.initialize(model, None,
                                opt_level = 'O2' if mixed_precision else 'O0',
