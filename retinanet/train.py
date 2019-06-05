@@ -150,7 +150,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
 
             if val_annotations and (iteration == iterations or iteration % val_iterations == 0):
                 infer(model, val_path, None, resize, max_size, batch_size, annotations=val_annotations,
-                    mixed_precision=mixed_precision, is_master=is_master, world=world, use_dali=use_dali, verbose=False)
+                    mixed_precision=mixed_precision, is_master=is_master, world=world, use_dali=use_dali, is_validation=True, verbose=False)
                 model.train()
 
             if iteration == iterations:
