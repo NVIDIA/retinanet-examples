@@ -65,7 +65,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
         from tensorboardX import SummaryWriter
         if is_master and verbose:
             print('Writing TensorBoard logs to: {}'.format(logdir))
-        writer = SummaryWriter(log_dir=logdir)
+        writer = SummaryWriter(logdir=logdir)
 
     profiler = Profiler(['train', 'fw', 'bw'])
     iteration = state.get('iteration', 0)
