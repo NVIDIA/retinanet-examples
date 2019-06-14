@@ -20,7 +20,7 @@ tar -xvf DeepStreamSDK-Tesla-v3.0-tbz2 -C DeepStream_Release/
 
 3.) We strongly recommend using the provided Dockerfile to configure the environment for Tesla GPUs.
 ```
-docker build -f retinanet-examples/Dockerfile.deepstream -t ds_retinanet:latest 
+docker build -f <your_path>/retinanet-examples/Dockerfile.deepstream -t ds_retinanet:latest <your_path>/retinanet-examples
 docker run --runtime=nvidia -e NVIDIA_DRIVER_CAPABILITIES=compute,utility,video -it \
     --rm --ipc=host -v <dir containing your data>:/data ds_retinanet:latest
 ```

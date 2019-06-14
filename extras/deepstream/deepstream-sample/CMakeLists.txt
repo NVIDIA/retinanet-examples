@@ -16,6 +16,10 @@ if(DEFINED DeepStream_DIR)
 endif(DEFINED DeepStream_DIR)
 include_directories(${CUDA_INCLUDE_DIRS})
 
+if(NOT DEFINED ARCH)
+  set(ARCH "sm_70")
+endif(NOT DEFINED ARCH)
+
 cuda_add_library(nvdsparsebbox_retinanet SHARED
   ../../../csrc/cuda/decode.h
   ../../../csrc/cuda/decode.cu
@@ -24,6 +28,6 @@ cuda_add_library(nvdsparsebbox_retinanet SHARED
   ../../../csrc/cuda/utils.h
   ../../../csrc/engine.cpp
   nvdsparsebbox_retinanet.cpp
-  OPTIONS -arch sm_60 -std=c++11 --expt-extended-lambda
+  OPTIONS -arch ${ARCH} -std=c++11 --expt-extended-lambda
 )
 target_link_libraries(nvdsparsebbox_retinanet ${CUDA_LIBRARIES} nvinfer nvinfer_plugin nvonnxparser)
