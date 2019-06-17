@@ -44,7 +44,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
         if warmup and train_iter <= warmup:
             return 0.9 * train_iter / warmup + 0.1
         return gamma ** len([m for m in milestones if m <= train_iter])
-    scheduler = LambdaLR(optimizer.optimizer if mixed_precision else optimizer, schedule)
+    scheduler = LambdaLR(optimizer, schedule)
 
     # Prepare dataset
     if verbose: print('Preparing dataset...')
@@ -65,7 +65,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
         from tensorboardX import SummaryWriter
         if is_master and verbose:
             print('Writing TensorBoard logs to: {}'.format(logdir))
-        writer = SummaryWriter(log_dir=logdir)
+        writer = SummaryWriter(logdir=logdir)
 
     profiler = Profiler(['train', 'fw', 'bw'])
     iteration = state.get('iteration', 0)
