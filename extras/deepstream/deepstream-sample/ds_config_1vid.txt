@@ -48,6 +48,16 @@ bitrate=80000000
 output-file=<path>
 source-id=0
 
+[sink1]
+enable=0
+#Type - 1=FakeSink 2=EglSink 3=File
+type=2
+sync=1
+source-id=0
+gpu-id=0
+cuda-memory-type=1
+
+
 [osd]
 enable=1
 gpu-id=0

@@ -58,7 +58,7 @@ gie-unique-id=1
 parse-func=0
 is-classifier=0
 output-blob-names=boxes;scores;classes
-parse-bbox-func-name=NvDsInferParseCustomRetinaNet
+parse-bbox-func-name=NvDsInferParseRetinaNet
 custom-lib-path=build/libnvdsparsebbox_retinanet.so
 #enable-dbscan=1
 

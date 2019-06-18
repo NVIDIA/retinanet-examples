@@ -20,12 +20,11 @@
 
 /* C-linkage to prevent name-mangling */
 extern "C"
-bool NvDsInferParseCustomRetinaNet (std::vector<NvDsInferLayerInfo> const &outputLayersInfo,
+bool NvDsInferParseRetinaNet (std::vector<NvDsInferLayerInfo> const &outputLayersInfo,
         NvDsInferNetworkInfo  const &networkInfo,
         NvDsInferParseDetectionParams const &detectionParams,
         std::vector<NvDsInferParseObjectInfo> &objectList)
 {
-  // std::cout << "DEBUG: Entering function" << std::endl;
   static int bboxLayerIndex = -1;
   static int classesLayerIndex = -1;
   static int scoresLayerIndex = -1;
@@ -78,12 +77,10 @@ bool NvDsInferParseCustomRetinaNet (std::vector<NvDsInferLayerInfo> const &outpu
   
   /* Calculate the number of detections to parse */
   numDetsToParse = scoresLayerDims.c;
-  //std::cout << "DEBUG: Number of detections: " << numDetsToParse << std::endl;
 
   float *bboxes = (float *) outputLayersInfo[bboxLayerIndex].buffer;
   float *classes = (float *) outputLayersInfo[classesLayerIndex].buffer;
   float *scores = (float *) outputLayersInfo[scoresLayerIndex].buffer;
-  // std::cout << "DEBUG: outputLayersInfo[scoresLayerIndex].buffer: " << outputLayersInfo[scoresLayerIndex].buffer << std::endl;
   
   for (int indx = 0; indx < numDetsToParse; indx++)
   {
@@ -110,9 +107,8 @@ bool NvDsInferParseCustomRetinaNet (std::vector<NvDsInferLayerInfo> const &outpu
       objectList.push_back(object);
     }
   }
-  //std::cout << "Returning from function" <<std::endl;
   return true;
 }
 
 /* Check that the custom function has been defined correctly */
-CHECK_CUSTOM_PARSE_FUNC_PROTOTYPE(NvDsInferParseCustomRetinaNet);
+CHECK_CUSTOM_PARSE_FUNC_PROTOTYPE(NvDsInferParseRetinaNet);
