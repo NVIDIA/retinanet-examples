@@ -95,7 +95,13 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
 
         # Collect detections
         detections = []
-        for scores, boxes, classes, ids, ratios in zip(*results):
+        processed_ids = set()
+        for scores, boxes, classes, image_id, ratios in zip(*results):
+            image_id = image_id.item()
+            if image_id in processed_ids:
+                continue
+            processed_ids.add(image_id)
+
             keep = (scores > 0).nonzero()
             scores = scores[keep].view(-1)
             boxes = boxes[keep, :].view(-1, 4) / ratios
@@ -107,7 +113,7 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
                 if 'annotations' in data_iterator.coco.dataset:
                     cat = data_iterator.coco.getCatIds()[cat]
                 detections.append({
-                    'image_id': ids.item(),
+                    'image_id': image_id,
                     'score': score.item(),
                     'bbox': [x1, y1, x2 - x1 + 1, y2 - y1 + 1],
                     'category_id': cat
