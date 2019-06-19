@@ -1,0 +1,89 @@
+# Copyright (c) 2018 NVIDIA Corporation.  All rights reserved.
+# NVIDIA Corporation and its licensors retain all intellectual property
+# and proprietary rights in and to this software, related documentation
+# and any modifications thereto.  Any use, reproduction, disclosure or
+# distribution of this software and related documentation without an express
+# license agreement from NVIDIA Corporation is strictly prohibited.
+
+# Following properties are mandatory when engine files are not specified:
+#   int8-calib-file(Only in INT8)
+#   Caffemodel mandatory properties: model-file, proto-file, output-blob-names
+#   UFF: uff-file, input-dims, uff-input-blob-name, output-blob-names
+#   ONNX: onnx-file
+#
+# Mandatory properties for detectors:
+#   parse-func, num-detected-classes,
+#   custom-lib-path (when parse-func=0 i.e. custom),
+#   parse-bbox-func-name (when parse-func=0)
+#
+# Optional properties for detectors:
+#   enable-dbscan(Default=false), interval(Primary mode only, Default=0)
+#
+# Mandatory properties for classifiers:
+#   classifier-threshold, is-classifier
+#
+# Optional properties for classifiers:
+#   classifier-async-mode(Secondary mode only, Default=false)
+#
+# Optional properties in secondary mode:
+#   operate-on-gie-id(Default=0), operate-on-class-ids(Defaults to all classes),
+#   input-object-min-width, input-object-min-height, input-object-max-width,
+#   input-object-max-height
+#
+# Following properties are always recommended:
+#   batch-size(Default=1)
+#
+# Other optional properties:
+#   net-scale-factor(Default=1), network-mode(Default=0 i.e FP32),
+#   model-color-format(Default=0 i.e. RGB) model-engine-file, labelfile-path,
+#   mean-file, gie-unique-id(Default=0), offsets, gie-mode (Default=1 i.e. primary),
+#   custom-lib-path, network-mode(Default=0 i.e FP32)
+#
+# The values in the config file are overridden by values set through GObject
+# properties.
+
+[property]
+gpu-id=0
+net-scale-factor=0.017352074
+offsets=123.675;116.28;103.53
+model-engine-file=<path>
+labelfile-path=labels_coco.txt
+#int8-calib-file=cal_trt4.bin
+batch-size=8
+## 0=FP32, 1=INT8, 2=FP16 mode
+network-mode=2
+num-detected-classes=80
+interval=0
+gie-unique-id=1
+parse-func=0
+is-classifier=0
+output-blob-names=boxes;scores;classes
+parse-bbox-func-name=NvDsInferParseRetinaNet
+custom-lib-path=build/libnvdsparsebbox_retinanet.so
+#enable-dbscan=1
+
+
+[class-attrs-all]
+threshold=0.5
+group-threshold=0
+## Set eps=0.7 and minBoxes for enable-dbscan=1
+#eps=0.2
+##minBoxes=3
+#roi-top-offset=0
+#roi-bottom-offset=0
+detected-min-w=4
+detected-min-h=4
+#detected-max-w=0
+#detected-max-h=0
+
+## Per class configuration
+#[class-attrs-2]
+#threshold=0.6
+#eps=0.5
+#group-threshold=3
+#roi-top-offset=20
+#roi-bottom-offset=10
+#detected-min-w=40
+#detected-min-h=40
+#detected-max-w=400
+#detected-max-h=800
