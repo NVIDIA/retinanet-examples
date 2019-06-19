@@ -59,10 +59,15 @@ tar -xpvf DeepStreamSDK-Jetson-3.0_EA_beta5.0.tbz2
 
 cd deepstream_sdk_on_jetson/ && \
    sudo tar -xvf binaries.tbz2 -C / && \ 
-   ldconfig
+   sudo ldconfig
 ```
 
-5.) Export trained PyTorch RetinaNet model using the [cppapi sample code](https://github.com/NVIDIA/retinanet-examples/tree/master/extras/cppapi#running)
+5.) Export trained PyTorch RetinaNet model to ONNX on your host system (i.e. not on your Jetson), specifying (`--opset 8`):
+```
+   retinanet export model.pth model.onnx --opset 8
+```
+
+5.) Copy ONNX RetinaNet model to Jetson Xavier, and export to TensorRT using the [cppapi sample code](https://github.com/NVIDIA/retinanet-examples/tree/master/extras/cppapi#running)
 
 
 ## Preparing the DeepStream config file:
@@ -80,6 +85,7 @@ Before they can be used, these config files must be modified to specify the corr
 
 **TensorRT engines** are specified in both the DeepStream config files, and also the detector config files, by the `model-engine-file=<path>` parameters. 
 
+On Xavier, you can optionally set `enable=1` to `[sink1]` in `ds_config_*` files to display the processed video stream.
 
 ## Run deepstream-app
 Once all of the config files have been modified, launch the DeepStream application: 
