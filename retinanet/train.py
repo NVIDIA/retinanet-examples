@@ -72,7 +72,6 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
     while iteration < iterations:
         cls_losses, box_losses = [], []
         for i, (data, target) in enumerate(data_iterator):
-            scheduler.step(iteration)
 
             # Forward pass
             profiler.start('fw')
@@ -87,6 +86,8 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
             with amp.scale_loss(cls_loss + box_loss, optimizer) as scaled_loss:
                 scaled_loss.backward()
             optimizer.step()
+
+            scheduler.step(iteration)
 
             # Reduce all losses
             cls_loss, box_loss = cls_loss.mean().clone(), box_loss.mean().clone()
