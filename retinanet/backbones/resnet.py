@@ -6,12 +6,12 @@ from .utils import register
 class ResNet(vrn.ResNet):
     'Deep Residual Network - https://arxiv.org/abs/1512.03385'
 
-    def __init__(self, layers=[3, 4, 6, 3], bottleneck=vrn.Bottleneck, outputs=[5], url=None):
+    def __init__(self, layers=[3, 4, 6, 3], bottleneck=vrn.Bottleneck, outputs=[5], groups=1, width_per_group=64, url=None):
         self.stride = 128        
         self.bottleneck = bottleneck
         self.outputs = outputs
         self.url = url
-        super().__init__(bottleneck, layers)
+        super().__init__(bottleneck, layers, groups=groups, width_per_group=width_per_group)
 
     def initialize(self):
         if self.url:
