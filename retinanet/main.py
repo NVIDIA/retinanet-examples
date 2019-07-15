@@ -65,7 +65,7 @@ def parse(args):
     parser_export.add_argument('--batch', metavar='size', type=int, help='max batch size to use for TensorRT engine', default=2)
     parser_export.add_argument('--full-precision', help='export in full instead of half precision', action='store_true')
     parser_export.add_argument('--int8', help='calibrate model and export in int8 precision', action='store_true')
-    parser_export.add_argument('--opset', metavar='version', type=int, help='ONNX opset version')
+    parser_export.add_argument('--opset', metavar='version', type=int, help='ONNX opset version', default=9)
     parser_export.add_argument('--calibration-batches', metavar='size', type=int, help='number of batches to use for int8 calibration', default=10)
     parser_export.add_argument('--calibration-images', metavar='path', type=str, help='path to calibration images to use for int8 calibration', default="")
     parser_export.add_argument('--calibration-table', metavar='path', type=str, help='path of existing calibration table to load from, or name of new calibration table', default="")

@@ -207,24 +207,31 @@ class Model(nn.Module):
         if opset > 9: raise RuntimeError("retinanet export is only supported for ONNX opset <= 9")
 
         if opset == 9:
-            import torch.onnx.symbolic_opset9 as onnx_symbolic
-            def upsample_nearest2d(g, input, output_size):
+            try:
+                import torch.onnx.symbolic_opset9 as onnx_symbolic
                 # Currently TRT 5.1 ONNX Parser does not support all ONNX ops
                 # needed to support new dynamic upsampling ONNX forumlation for opset 9+
                 # Here we hardcode scale=2 as a temporary workaround
-                scales = g.op("Constant", value_t=torch.tensor([1.,1.,2.,2.]))
-                return g.op("Upsample", input, scales, mode_s="nearest")
+                def upsample_nearest2d(g, input, output_size):
+                    scales = g.op("Constant", value_t=torch.tensor([1.,1.,2.,2.]))
+                    return g.op("Upsample", input, scales, mode_s="nearest")
+
+                onnx_symbolic.upsample_nearest_2d = upsample_nearest2d
+
+            except:
+                # torch.onnx.symbolic.upsample_nearest2d opset 9 works as is
+                pass
+
         else:
             import torch.onnx.symbolic as onnx_symbolic
-            @torch.onnx.symbolic_helper.parse_args('v', 'is')
+            @torch.onnx.symbolic.parse_args('v', 'is')
             def upsample_nearest2d(g, input, output_size):
                 height_scale = float(output_size[-2]) / input.type().sizes()[-2]
                 width_scale = float(output_size[-1]) / input.type().sizes()[-1]
                 return g.op("Upsample", input,
                         scales_f=(1,1,height_scale, width_scale),
                         mode_s="nearest")
-
-        onnx_symbolic.upsample_nearest2d = upsample_nearest2d
+            onnx_symbolic.upsample_nearest2d = upsample_nearest2d
  
         # Export to ONNX
         print('Exporting to ONNX...')
