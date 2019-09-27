@@ -161,7 +161,7 @@ def worker(rank, args, world, model, state):
         elif not args.full_precision:
             precision = "FP16"
 
-        exported = model.export(input_size, args.batch, precision, calibration_files, args.calibration_table, args.verbose, onnx_only=onnx_only, opset=args.opset)
+        exported = model.export(input_size, args.batch, precision, calibration_files, args.calibration_table, args.verbose, onnx_only=onnx_only)
         if onnx_only:
             with open(args.export, 'wb') as out:
                 out.write(exported)
