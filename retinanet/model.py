@@ -212,6 +212,8 @@ class Model(nn.Module):
             # Here we hardcode scale=2 as a temporary workaround
             scales = g.op("Constant", value_t=torch.tensor([1.,1.,2.,2.]))
             return g.op("Upsample", input, scales, mode_s="nearest")
+
+        onnx_symbolic.upsample_nearest2d = upsample_nearest2d
  
         # Export to ONNX
         print('Exporting to ONNX...')
