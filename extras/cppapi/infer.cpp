@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
 	cout << "Preparing data..." << endl;
 	auto image = imread(argv[2], IMREAD_COLOR);
 	auto inputSize = engine.getInputSize();
-	cv::resize(image, image, Size(inputSize[0], inputSize[1]));
+	cv::resize(image, image, Size(inputSize[1], inputSize[0]));
         cv::Mat pixels;
         image.convertTo(pixels, CV_32FC3, 1.0 / 255, 0);
 
