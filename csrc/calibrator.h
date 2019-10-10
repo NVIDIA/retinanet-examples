@@ -75,7 +75,7 @@ public:
             auto hw = _inputDims.d[1] * _inputDims.d[2];
             auto channels = _inputDims.d[0];
             auto vol = channels * hw;
- 
+
             for (int c = 0; c < channels; c++) {
                 for (int j = 0; j < hw; j++) {
                     _batch[i * vol + c * hw + j] = (img[channels * j + 2 - c] - _mean[c]) / _std[c];
