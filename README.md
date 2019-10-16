@@ -35,7 +35,7 @@ Training results for [COCO 2017](http://cocodataset.org/#detection-2017) (train/
 
 For best performance, we encourage using the latest [PyTorch NGC docker container](https://ngc.nvidia.com/catalog/containers/nvidia:pytorch):
 ```bash
-nvidia-docker run --rm --ipc=host -it nvcr.io/nvidia/pytorch:19.05-py3
+docker run --gpus all --rm --ipc=host -it nvcr.io/nvidia/pytorch:19.09-py3
 ```
 
 From the container, simply install retinanet using `pip`:
@@ -47,7 +47,7 @@ Or you can clone this repository, build and run your own image:
 ```bash
 git clone https://github.com/nvidia/retinanet-examples
 docker build -t retinanet:latest retinanet/
-nvidia-docker run --rm --ipc=host -it retinanet:latest
+docker run --gpus all --rm --ipc=host -it retinanet:latest
 ```
 
 ## Usage
