@@ -155,7 +155,9 @@ public:
       workspace, getWorkspaceSize(batchSize), stream);
   }
 
-  void destroy() override {};
+  void destroy() override {
+    delete this;
+  };
 
   const char *getPluginNamespace() const override {
     return RETINANET_PLUGIN_NAMESPACE;
