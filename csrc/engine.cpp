@@ -44,7 +44,7 @@ public:
     }
 
     void log(Severity severity, const char *msg) override {
-        if (_verbose || (severity != Severity::kINFO))
+        if (_verbose || (severity != Severity::kINFO) && (severity != Severity::kVERBOSE))
             cout << msg << endl;
     }
 
