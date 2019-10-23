@@ -61,7 +61,7 @@ public:
 
         for (int i = 0; i < _batchSize; i++) {
             auto image = imread(_calibrationImages[_batchSize * _currentBatch + i].c_str(), IMREAD_COLOR);
-            cv::resize(image, image, Size(_inputDims.d[1], _inputDims.d[2]));
+            cv::resize(image, image, Size(_inputDims.d[2], _inputDims.d[1]));
             cv::Mat pixels;
             image.convertTo(pixels, CV_32FC3, 1.0 / 255, 0);
 
