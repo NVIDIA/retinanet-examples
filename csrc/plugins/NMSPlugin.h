@@ -94,12 +94,12 @@ public:
   }
 
   bool supportsFormat(DataType type, PluginFormat format) const override {
-    return type == DataType::kFLOAT && format == PluginFormat::kNCHW;
+    return type == DataType::kFLOAT && format == PluginFormat::kLINEAR;
   }
 
   void configureWithFormat(const Dims* inputDims, int nbInputs, const Dims* outputDims, 
                         int nbOutputs, DataType type, PluginFormat format, int maxBatchSize) override {
-    assert(type == nvinfer1::DataType::kFLOAT && format == nvinfer1::PluginFormat::kNCHW);
+    assert(type == nvinfer1::DataType::kFLOAT && format == nvinfer1::PluginFormat::kLINEAR);
     assert(nbInputs == 3);
     assert(inputDims[0].d[0] == inputDims[2].d[0]);
     assert(inputDims[1].d[0] == inputDims[2].d[0] * 4);
