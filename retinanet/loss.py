@@ -5,13 +5,15 @@ import torch.nn.functional as F
 class FocalLoss(nn.Module):
     'Focal Loss - https://arxiv.org/abs/1708.02002'
 
-    def __init__(self, alpha=0.25, gamma=2):
+    def __init__(self, alpha=0.25, gamma=2, epsilon=1e-10):
         super().__init__()
         self.alpha = alpha
         self.gamma = gamma
+        self.epsilon = epsilon
 
     def forward(self, pred_logits, target):
         pred = pred_logits.sigmoid()
+        pred = torch.clamp(pred, self.epsilon, 1 - self.epsilon)
         ce = F.binary_cross_entropy_with_logits(pred_logits, target, reduction='none')
         alpha = target * self.alpha + (1. - target) * (1. - self.alpha)
         pt = torch.where(target == 1,  pred, 1 - pred)
