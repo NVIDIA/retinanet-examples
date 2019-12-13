@@ -44,7 +44,7 @@ public:
     }
 
     void log(Severity severity, const char *msg) override {
-        if (_verbose || (severity != Severity::kINFO) && (severity != Severity::kVERBOSE))
+        if (_verbose || (severity != Severity::kINFO))
             cout << msg << endl;
     }
 
@@ -99,16 +99,14 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string pr
 
     // Create builder
     auto builder = createInferBuilder(logger);
-    auto builderConfig = builder->createBuilderConfig();
     builder->setMaxBatchSize(batch);
     // Allow use of FP16 layers when running in INT8
-    if(fp16 || int8) builderConfig->setFlag(BuilderFlag::kFP16);
-    builderConfig->setMaxWorkspaceSize(workspace_size);
+    builder->setFp16Mode(fp16 || int8);
+    builder->setMaxWorkspaceSize(workspace_size);
 
     // Parse ONNX FCN
     cout << "Building " << precision << " core model..." << endl;
-    const auto flags = 0U << static_cast<uint32_t>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
-    auto network = builder->createNetworkV2(flags);
+    auto network = builder->createNetwork();
     auto parser = createParser(*network, logger);
     parser->parse(onnx_model, onnx_size);
 
@@ -117,10 +115,10 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string pr
 
     std::unique_ptr<Int8EntropyCalibrator> calib;
     if (int8) {
-        builderConfig->setFlag(BuilderFlag::kINT8);
+        builder->setInt8Mode(int8);
         ImageStream stream(batch, inputDims, calibration_images);
         calib = std::unique_ptr<Int8EntropyCalibrator>(new Int8EntropyCalibrator(stream, model_name, calibration_table));
-        builderConfig->setInt8Calibrator(calib.get());
+        builder->setInt8Calibrator(calib.get());
     }
 
     // Add decode plugins
@@ -168,12 +166,11 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string pr
 
     // Build engine
     cout << "Applying optimizations and building TRT CUDA engine..." << endl;
-    _engine = builder->buildEngineWithConfig(*network, *builderConfig);
+    _engine = builder->buildCudaEngine(*network);
 
     // Housekeeping
     parser->destroy();
     network->destroy();
-    builderConfig->destroy();
     builder->destroy();
 
     _prepare();
