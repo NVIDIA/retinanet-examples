@@ -29,28 +29,28 @@ int main(int argc, char *argv[]) {
 	auto image = imread(argv[2], IMREAD_COLOR);
 	auto inputSize = engine.getInputSize();
 	cv::resize(image, image, Size(inputSize[1], inputSize[0]));
-        cv::Mat pixels;
-        image.convertTo(pixels, CV_32FC3, 1.0 / 255, 0);
+	cv::Mat pixels;
+	image.convertTo(pixels, CV_32FC3, 1.0 / 255, 0);
 
-        int channels = 3;
-        vector<float> img;
-        vector<float> data (channels * inputSize[0] * inputSize[1]);
+	int channels = 3;
+	vector<float> img;
+	vector<float> data (channels * inputSize[0] * inputSize[1]);
 
-        if (pixels.isContinuous())
-            img.assign((float*)pixels.datastart, (float*)pixels.dataend);
-        else {
-            cerr << "Error reading image " << argv[2] << endl;
-            return -1;
-        }
+	if (pixels.isContinuous())
+		img.assign((float*)pixels.datastart, (float*)pixels.dataend);
+	else {
+		cerr << "Error reading image " << argv[2] << endl;
+		return -1;
+	}
 
-        vector<float> mean {0.485, 0.456, 0.406};
-        vector<float> std {0.229, 0.224, 0.225};
-  
-        for (int c = 0; c < channels; c++) {
-            for (int j = 0, hw = inputSize[0] * inputSize[1]; j < hw; j++) {
-                data[c * hw + j] = (img[channels * j + 2 - c] - mean[c]) / std[c];
-            }
-        }        
+	vector<float> mean {0.485, 0.456, 0.406};
+	vector<float> std {0.229, 0.224, 0.225};
+
+	for (int c = 0; c < channels; c++) {
+		for (int j = 0, hw = inputSize[0] * inputSize[1]; j < hw; j++) {
+			data[c * hw + j] = (img[channels * j + 2 - c] - mean[c]) / std[c];
+		}
+	}        
 
 	// Create device buffers
 	void *data_d, *scores_d, *boxes_d, *classes_d;
@@ -76,13 +76,19 @@ int main(int argc, char *argv[]) {
 	auto timing = chrono::duration_cast<chrono::duration<double>>(stop - start);
 	cout << "Took " << timing.count() / count << " seconds per inference." << endl;
 
+	cudaFree(data_d);
+
 	// Get back the bounding boxes
-	auto scores = new float[num_det];
-	auto boxes = new float[num_det * 4];
-	auto classes = new float[num_det];
-	cudaMemcpy(scores, scores_d, sizeof(float) * num_det, cudaMemcpyDeviceToHost);
-	cudaMemcpy(boxes, boxes_d, sizeof(float) * num_det * 4, cudaMemcpyDeviceToHost);
-	cudaMemcpy(classes, classes_d, sizeof(float) * num_det, cudaMemcpyDeviceToHost);
+	unique_ptr<float[]> scores(new float[num_det]);
+	unique_ptr<float[]> boxes(new float[num_det * 4]);
+	unique_ptr<float[]> classes(new float[num_det]);
+	cudaMemcpy(scores.get(), scores_d, sizeof(float) * num_det, cudaMemcpyDeviceToHost);
+	cudaMemcpy(boxes.get(), boxes_d, sizeof(float) * num_det * 4, cudaMemcpyDeviceToHost);
+	cudaMemcpy(classes.get(), classes_d, sizeof(float) * num_det, cudaMemcpyDeviceToHost);
+
+	cudaFree(scores_d);
+	cudaFree(boxes_d);
+	cudaFree(classes_d);
 
 	for (int i = 0; i < num_det; i++) {
 		// Show results over confidence threshold
@@ -98,8 +104,6 @@ int main(int argc, char *argv[]) {
 			cv::rectangle(image, Point(x1, y1), Point(x2, y2), cv::Scalar(0, 255, 0));
 		}
 	}
-
-	delete[] scores, boxes, classes; 
 
 	// Write image
 	imwrite("detections.png", image);

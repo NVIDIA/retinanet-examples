@@ -116,12 +116,12 @@ public:
   }
 
   bool supportsFormat(DataType type, PluginFormat format) const override {
-    return type == DataType::kFLOAT && format == PluginFormat::kNCHW;
+    return type == DataType::kFLOAT && format == PluginFormat::kLINEAR;
   }
 
   void configureWithFormat(const Dims* inputDims, int nbInputs, const Dims* outputDims, 
                         int nbOutputs, DataType type, PluginFormat format, int maxBatchSize) override {
-    assert(type == nvinfer1::DataType::kFLOAT && format == nvinfer1::PluginFormat::kNCHW);
+    assert(type == nvinfer1::DataType::kFLOAT && format == nvinfer1::PluginFormat::kLINEAR);
     assert(nbInputs == 2);
     auto const& scores_dims = inputDims[0];
     auto const& boxes_dims = inputDims[1];
@@ -155,7 +155,9 @@ public:
       workspace, getWorkspaceSize(batchSize), stream);
   }
 
-  void destroy() override {};
+  void destroy() override {
+    delete this;
+  };
 
   const char *getPluginNamespace() const override {
     return RETINANET_PLUGIN_NAMESPACE;

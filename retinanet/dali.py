@@ -11,20 +11,19 @@ from pycocotools.coco import COCO
 class COCOPipeline(pipeline.Pipeline):
     'Dali pipeline for COCO'
 
-    def __init__(self, batch_size, num_threads, path, coco, training, annotations, world, device_id, mean, std, resize, max_size, stride):
+    def __init__(self, batch_size, num_threads, path, training, annotations, world, device_id, mean, std, resize, max_size, stride):
         super().__init__(batch_size=batch_size, num_threads=num_threads, device_id = device_id, prefetch_queue_depth=num_threads, seed=42)
 
         self.path = path
         self.training = training
-        self.coco = coco
         self.stride = stride
         self.iter = 0
 
         self.reader = ops.COCOReader(annotations_file=annotations, file_root=path, num_shards=world,shard_id=torch.cuda.current_device(), 
                                      ltrb=True, ratio=True, shuffle_after_epoch=True, save_img_ids=True)
 
-        self.decode_train = ops.nvJPEGDecoderSlice(device="mixed", output_type=types.RGB)
-        self.decode_infer = ops.nvJPEGDecoder(device="mixed", output_type=types.RGB)
+        self.decode_train = ops.ImageDecoderSlice(device="mixed", output_type=types.RGB)
+        self.decode_infer = ops.ImageDecoder(device="mixed", output_type=types.RGB)
         self.bbox_crop = ops.RandomBBoxCrop(device='cpu', ltrb=True, scaling=[0.3, 1.0], thresholds=[0.1,0.3,0.5,0.7,0.9])
 
         self.bbox_flip = ops.BbFlip(device='cpu', ltrb=True)
@@ -88,7 +87,7 @@ class DaliDataIterator():
             self.categories_inv = { k: i for i, k in enumerate(self.coco.getCatIds()) }
 
         self.pipe = COCOPipeline(batch_size=self.batch_size, num_threads=2, 
-            path=path, coco=self.coco, training=training, annotations=annotations, world=world, 
+            path=path, training=training, annotations=annotations, world=world, 
             device_id = torch.cuda.current_device(), mean=self.mean, std=self.std, resize=resize, max_size=max_size, stride=self.stride)
 
         self.pipe.build()

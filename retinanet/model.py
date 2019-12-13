@@ -203,26 +203,24 @@ class Model(nn.Module):
 
         return model, state
 
-    def export(self, size, batch, precision, calibration_files, calibration_table, verbose, onnx_only=False, opset=None):
-        import torch.onnx.symbolic
+    def export(self, size, batch, precision, calibration_files, calibration_table, verbose, onnx_only=False):
 
-        if opset is not None and opset < 9:
-            # Override Upsample's ONNX export from old opset if required (not needed for TRT 5.1+)
-            @torch.onnx.symbolic.parse_args('v', 'is')
-            def upsample_nearest2d(g, input, output_size):
-                height_scale = float(output_size[-2]) / input.type().sizes()[-2]
-                width_scale = float(output_size[-1]) / input.type().sizes()[-1]
-                return g.op("Upsample", input,
-                    scales_f=(1, 1, height_scale, width_scale),
-                    mode_s="nearest")
-            torch.onnx.symbolic.upsample_nearest2d = upsample_nearest2d
+        import torch.onnx.symbolic_opset9 as onnx_symbolic
+        def upsample_nearest2d(g, input, output_size):
+            # Currently, TRT 5.1/6.0 ONNX Parser does not support all ONNX ops
+            # needed to support dynamic upsampling ONNX forumlation
+            # Here we hardcode scale=2 as a temporary workaround
+            scales = g.op("Constant", value_t=torch.tensor([1.,1.,2.,2.]))
+            return g.op("Upsample", input, scales, mode_s="nearest")
 
+        onnx_symbolic.upsample_nearest2d = upsample_nearest2d
+ 
         # Export to ONNX
         print('Exporting to ONNX...')
         self.exporting = True
         onnx_bytes = io.BytesIO()
         zero_input = torch.zeros([1, 3, *size]).cuda()
-        extra_args = { 'opset_version': opset } if opset else {}
+        extra_args = { 'verbose': verbose }
         torch.onnx.export(self.cuda(), zero_input, onnx_bytes, *extra_args)
         self.exporting = False
 
