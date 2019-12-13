@@ -39,7 +39,7 @@ class COCOPipeline(pipeline.Pipeline):
         padded_size = max_size + ((self.stride - max_size % self.stride) % self.stride)
 
         self.pad = ops.Paste(device='gpu', fill_value = 0, ratio=1.1, min_canvas_size=padded_size, paste_x=0, paste_y=0)
-        self.normalize = ops.CropMirrorNormalize(device='gpu', mean=mean, std=std, crop=padded_size, crop_pos_x=0, crop_pos_y=0)
+        self.normalize = ops.CropMirrorNormalize(device='gpu', mean=mean, std=std, crop=(padded_size, padded_size), crop_pos_x=0, crop_pos_y=0)
 
     def define_graph(self):
 
