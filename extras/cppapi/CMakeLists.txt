@@ -34,3 +34,8 @@ find_package(OpenCV REQUIRED)
 
 add_executable(infer infer.cpp)
 target_link_libraries(infer PRIVATE retinanet ${OpenCV_LIBS} cuda ${CUDA_LIBRARIES})
+
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+  add_executable(infervideo infervideo.cpp)
+  target_link_libraries(infervideo PRIVATE retinanet ${OpenCV_LIBS} cuda ${CUDA_LIBRARIES})
+endif()
