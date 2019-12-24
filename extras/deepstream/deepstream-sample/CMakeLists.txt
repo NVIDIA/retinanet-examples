@@ -4,7 +4,7 @@ project(deepstream-retinanet)
 enable_language(CXX)
 include(FindCUDA)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 find_package(CUDA REQUIRED)
 
 if(DEFINED TensorRT_DIR)
@@ -28,6 +28,6 @@ cuda_add_library(nvdsparsebbox_retinanet SHARED
   ../../../csrc/cuda/utils.h
   ../../../csrc/engine.cpp
   nvdsparsebbox_retinanet.cpp
-  OPTIONS -arch ${ARCH} -std=c++11 --expt-extended-lambda
+  OPTIONS -arch ${ARCH} -std=c++14 --expt-extended-lambda
 )
 target_link_libraries(nvdsparsebbox_retinanet ${CUDA_LIBRARIES} nvinfer nvinfer_plugin nvonnxparser)

@@ -11,9 +11,9 @@ setup(
     ext_modules=[CUDAExtension('retinanet._C',
         ['csrc/extensions.cpp', 'csrc/engine.cpp', 'csrc/cuda/decode.cu', 'csrc/cuda/nms.cu'],
         extra_compile_args={
-            'cxx': ['-std=c++11', '-O2', '-Wall'],
+            'cxx': ['-std=c++14', '-O2', '-Wall'],
             'nvcc': [
-                '-std=c++11', '--expt-extended-lambda', '--use_fast_math', '-Xcompiler', '-Wall',
+                '-std=c++14', '--expt-extended-lambda', '--use_fast_math', '-Xcompiler', '-Wall',
                 '-gencode=arch=compute_60,code=sm_60', '-gencode=arch=compute_61,code=sm_61',
                 '-gencode=arch=compute_70,code=sm_70', '-gencode=arch=compute_72,code=sm_72',
                 '-gencode=arch=compute_75,code=sm_75', '-gencode=arch=compute_75,code=compute_75'

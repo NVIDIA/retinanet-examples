@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
 
 project(retinanet_infer LANGUAGES CXX)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 find_package(CUDA REQUIRED)
 enable_language(CUDA)
+find_package(OpenCV REQUIRED)
 
 if(DEFINED TensorRT_DIR)
   include_directories("${TensorRT_DIR}/include")
@@ -24,18 +25,19 @@ add_library(retinanet
 set_target_properties(retinanet PROPERTIES 
   CUDA_RESOLVE_DEVICE_SYMBOLS ON
 )
-target_link_libraries(retinanet PUBLIC nvinfer nvonnxparser ${OPENCV_LIBS})
+include_directories(${OpenCV_INCLUDE_DIRS})
+target_link_libraries(retinanet PUBLIC nvinfer nvonnxparser ${OpenCV_LIBS})
 
-find_package(OpenCV REQUIRED)
 add_executable(export export.cpp)
+include_directories(${OpenCV_INCLUDE_DIRS})
 target_link_libraries(export PRIVATE retinanet ${OpenCV_LIBS})
 
-find_package(OpenCV REQUIRED)
-
 add_executable(infer infer.cpp)
+include_directories(${OpenCV_INCLUDE_DIRS})
 target_link_libraries(infer PRIVATE retinanet ${OpenCV_LIBS} cuda ${CUDA_LIBRARIES})
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
   add_executable(infervideo infervideo.cpp)
+  include_directories(${OpenCV_INCLUDE_DIRS})
   target_link_libraries(infervideo PRIVATE retinanet ${OpenCV_LIBS} cuda ${CUDA_LIBRARIES})
 endif()

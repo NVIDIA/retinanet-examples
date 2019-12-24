@@ -32,11 +32,11 @@ docker run --gpus all -it --rm --ipc=host -v <dir containing your data>:/data ds
 
 #### 4. Export your trained PyTorch RetinaNet model to TensorRT per the [INFERENCE](https://github.com/NVIDIA/retinanet-examples/blob/master/INFERENCE.md) instructions:
 ```
-retinanet export <PyTorch model> <engine> --opset 8 --batch n
+retinanet export <PyTorch model> <engine> --batch n
 
 OR
 
-retinanet export <PyTorch model> <engine> --opset 8 --int8 --calibration-images <example images> --batch n
+retinanet export <PyTorch model> <engine> --int8 --calibration-images <example images> --batch n
 ```
 
 #### 5. Run deepstream-app
@@ -86,7 +86,7 @@ Use `scp` or a memory card.
 ```bash
 cd extras/cppapi
 mkdir build && cd build
-cmake -DCMAKE_CUDA_FLAGS="--expt-extended-lambda -std=c++11" ..
+cmake -DCMAKE_CUDA_FLAGS="--expt-extended-lambda -std=c++14" ..
 make
 ```
 
