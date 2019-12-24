@@ -35,7 +35,7 @@ Training results for [COCO 2017](http://cocodataset.org/#detection-2017) (train/
 
 For best performance, we encourage using the latest [PyTorch NGC docker container](https://ngc.nvidia.com/catalog/containers/nvidia:pytorch):
 ```bash
-docker run --gpus all --rm --ipc=host -it nvcr.io/nvidia/pytorch:19.09-py3
+docker run --gpus all --rm --ipc=host -it nvcr.io/nvidia/pytorch:19.10-py3
 ```
 
 From the container, simply install retinanet using `pip`:
@@ -69,7 +69,7 @@ retinanet train retinanet_rn50fpn.pth --backbone ResNet50FPN \
 
 Fine-tune a pre-trained model on your dataset. In the example below we use [Pascal VOC](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/index.html) with [JSON annotations](https://storage.googleapis.com/coco-dataset/external/PASCAL_VOC.zip):
 ```bash
-retinanet train model_mydataset.pth \
+retinanet train model_mydataset.pth --backbone ResNet50FPN \
     --fine-tune retinanet_rn50fpn.pth \
     --classes 20 --iters 10000 --val-iters 1000 --lr 0.0005 \
     --resize 512 --jitter 480 640 --images /voc/JPEGImages/ \

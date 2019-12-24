@@ -13,7 +13,7 @@ Setup instructions:
 #### 1. Download DeepStream 4.0 
 Download DeepStream 4.0 SDK for Tesla "Download .tar" from [https://developer.nvidia.com/deepstream-download](https://developer.nvidia.com/deepstream-download) and place in the `extras/deepstream` directory. 
 
-This file should be called `deepstream_sdk_v4.0.1_x86_64.tbz2`.
+This file should be called `deepstream_sdk_v4.0.2_x86_64.tbz2`.
 
 #### 2. Unpack DeepStream
 You may need to adjust the permissions on the `.tbz2` file before you can extract it. 
@@ -21,7 +21,7 @@ You may need to adjust the permissions on the `.tbz2` file before you can extrac
 ```
 cd extras/deepstream
 mkdir DeepStream_Release
-tar -xvf deepstream_sdk_v4.0.1_x86_64.tbz2 -C DeepStream_Release/
+tar -xvf deepstream_sdk_v4.0.2_x86_64.tbz2 -C DeepStream_Release/
 ```
 
 #### 3. Build and enter the DeepStream docker container
@@ -49,40 +49,22 @@ LD_PRELOAD=build/libnvdsparsebbox_retinanet.so deepstream-app -c <config file>
 ## Jetson AGX Xavier
 Setup instructions.
 
-Note that for compatibility reasons, you must use the **TRT5 branch** of this repository. 
-
-#### 1. Flash Jetson Xavier with [Jetpack 4.2.3](https://developer.nvidia.com/embedded/jetpack)
+#### 1. Flash Jetson Xavier with [Jetpack 4.3](https://developer.nvidia.com/embedded/jetpack)
 
 **Ensure that you tick the DeepStream box, under Additional SDKs**
 
-#### 2. (on Jetson) Install additional DeepStream dependencies:
-```
-sudo apt install \
-    libssl1.0.0 \
-    libgstreamer1.0-0 \
-    gstreamer1.0-tools \
-    gstreamer1.0-plugins-good \
-    gstreamer1.0-plugins-bad \
-    gstreamer1.0-plugins-ugly \
-    gstreamer1.0-libav \
-    libgstrtspserver-1.0-0 \
-    libjansson4=2.11-1
-    librdkafka1=0.11.3-1build1
-```
-
-#### 3. (on host) Covert PyTorch model to ONNX.
+#### 2. (on host) Covert PyTorch model to ONNX.
 
 ```bash
 retinanet export model.pth model.onnx
 ```
 
-#### 4. Copy ONNX RetinaNet model and config files to Jetson Xavier
+#### 3. Copy ONNX RetinaNet model and config files to Jetson Xavier
 
 Use `scp` or a memory card.
 
-#### 5. (on Jetson) Make the C++ API
+#### 4. (on Jetson) Make the C++ API
 
-**Reminder: You must use the **TRT5 branch**.
 ```bash
 cd extras/cppapi
 mkdir build && cd build
@@ -90,7 +72,7 @@ cmake -DCMAKE_CUDA_FLAGS="--expt-extended-lambda -std=c++14" ..
 make
 ```
 
-#### 6. (on Jetson) Make the RetinaNet plugin
+#### 5. (on Jetson) Make the RetinaNet plugin
 
 ```bash
 cd extras/deepstream/deepstream-sample
@@ -98,17 +80,17 @@ mkdir build && cd build
 cmake -DDeepStream_DIR=/opt/nvidia/deepstream/deepstream-4.0 .. && make -j
 ```
 
-#### 7. (on Jetson) Build the TensorRT Engine
+#### 6. (on Jetson) Build the TensorRT Engine
 
 ```bash
 cd extras/cppapi
 ./export model.onnx engine.plan
 ```
 
-#### 8. (on Jetson) Modify the DeepStream config files
+#### 7. (on Jetson) Modify the DeepStream config files
 As described in the "preparing the DeepStream config file" section below. 
 
-#### 9. (on Jetson) Run deepstream-app
+#### 8. (on Jetson) Run deepstream-app
 Once all of the config files have been modified, launch the DeepStream application: 
 ```
 cd extras/deepstream/deepstream-sample
