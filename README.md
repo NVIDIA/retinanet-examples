@@ -46,7 +46,7 @@ pip install --no-cache-dir git+https://github.com/nvidia/retinanet-examples
 Or you can clone this repository, build and run your own image:
 ```bash
 git clone https://github.com/nvidia/retinanet-examples
-docker build -t retinanet:latest retinanet/
+docker build -t retinanet:latest retinanet-examples/
 docker run --gpus all --rm --ipc=host -it retinanet:latest
 ```
 
