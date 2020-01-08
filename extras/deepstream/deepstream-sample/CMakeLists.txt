@@ -6,6 +6,7 @@ include(FindCUDA)
 
 set(CMAKE_CXX_STANDARD 14)
 find_package(CUDA REQUIRED)
+find_package(OpenCV REQUIRED)
 
 if(DEFINED TensorRT_DIR)
   include_directories("${TensorRT_DIR}/include")
@@ -30,4 +31,5 @@ cuda_add_library(nvdsparsebbox_retinanet SHARED
   nvdsparsebbox_retinanet.cpp
   OPTIONS -arch ${ARCH} -std=c++14 --expt-extended-lambda
 )
-target_link_libraries(nvdsparsebbox_retinanet ${CUDA_LIBRARIES} nvinfer nvinfer_plugin nvonnxparser)
+include_directories(${OpenCV_INCLUDE_DIRS})
+target_link_libraries(nvdsparsebbox_retinanet ${CUDA_LIBRARIES} nvinfer nvinfer_plugin nvonnxparser ${OpenCV_LIBS})
