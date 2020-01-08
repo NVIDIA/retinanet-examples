@@ -101,7 +101,7 @@ cmake -DDeepStream_DIR=/opt/nvidia/deepstream/deepstream-4.0 .. && make -j
 #### 7. (on Jetson) Build the TensorRT Engine
 
 ```bash
-cd extras/cppapi
+cd extras/cppapi/build
 ./export model.onnx engine.plan
 ```
 
