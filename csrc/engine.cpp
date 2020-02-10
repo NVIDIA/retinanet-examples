@@ -100,14 +100,13 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string pr
     // Create builder
     auto builder = createInferBuilder(logger);
     auto builderConfig = builder->createBuilderConfig();
-    builder->setMaxBatchSize(batch);
     // Allow use of FP16 layers when running in INT8
     if(fp16 || int8) builderConfig->setFlag(BuilderFlag::kFP16);
     builderConfig->setMaxWorkspaceSize(workspace_size);
 
     // Parse ONNX FCN
     cout << "Building " << precision << " core model..." << endl;
-    const auto flags = 0U << static_cast<uint32_t>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
+    const auto flags = 1U << static_cast<uint32_t>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
     auto network = builder->createNetworkV2(flags);
     auto parser = createParser(*network, logger);
     parser->parse(onnx_model, onnx_size);
@@ -175,8 +174,6 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string pr
     network->destroy();
     builderConfig->destroy();
     builder->destroy();
-
-    _prepare();
 }
 
 void Engine::save(const string &path) {
@@ -188,22 +185,22 @@ void Engine::save(const string &path) {
     serialized->destroy();    
 }
 
-void Engine::infer(vector<void *> &buffers, int batch) {
-    _context->enqueue(batch, buffers.data(), _stream, nullptr);
+void Engine::infer(vector<void *> &buffers) {
+    _context->enqueueV2(buffers.data(), _stream, nullptr);
     cudaStreamSynchronize(_stream);
 }
 
 vector<int> Engine::getInputSize() {
     auto dims = _engine->getBindingDimensions(0);
-    return {dims.d[1], dims.d[2]};
+    return {dims.d[2], dims.d[3]};
 }
 
 int Engine::getMaxBatchSize() {
-    return _engine->getMaxBatchSize();
+    return (_engine->getBindingDimensions(0)).d[0];
 }
 
 int Engine::getMaxDetections() {
-    return _engine->getBindingDimensions(1).d[0];
+    return _engine->getBindingDimensions(1).d[1];
 }
 
 int Engine::getStride() {

@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
 	auto start = chrono::steady_clock::now();
  	vector<void *> buffers = { data_d, scores_d, boxes_d, classes_d };
 	for (int i = 0; i < count; i++) {
-		engine.infer(buffers, 1);
+		engine.infer(buffers);
 	}
 	auto stop = chrono::steady_clock::now();
 	auto timing = chrono::duration_cast<chrono::duration<double>>(stop - start);

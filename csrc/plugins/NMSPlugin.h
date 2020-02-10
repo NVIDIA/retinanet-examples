@@ -37,7 +37,7 @@ using namespace nvinfer1;
 
 namespace retinanet {
 
-class NMSPlugin : public IPluginV2 {
+class NMSPlugin : public IPluginV2Ext {
   float _nms_thresh;
   int _detections_per_im;
 
@@ -70,6 +70,13 @@ public:
     assert(detections_per_im > 0);
   }
 
+  NMSPlugin(float nms_thresh, int detections_per_im, size_t count)
+    : _nms_thresh(nms_thresh), _detections_per_im(detections_per_im), _count(count) {
+    assert(nms_thresh > 0);
+    assert(detections_per_im > 0);
+    assert(count > 0);
+  }
+
   NMSPlugin(void const* data, size_t length) {
     this->deserialize(data, length);
   }
@@ -95,15 +102,6 @@ public:
 
   bool supportsFormat(DataType type, PluginFormat format) const override {
     return type == DataType::kFLOAT && format == PluginFormat::kLINEAR;
-  }
-
-  void configureWithFormat(const Dims* inputDims, int nbInputs, const Dims* outputDims, 
-                        int nbOutputs, DataType type, PluginFormat format, int maxBatchSize) override {
-    assert(type == nvinfer1::DataType::kFLOAT && format == nvinfer1::PluginFormat::kLINEAR);
-    assert(nbInputs == 3);
-    assert(inputDims[0].d[0] == inputDims[2].d[0]);
-    assert(inputDims[1].d[0] == inputDims[2].d[0] * 4);
-    _count = inputDims[0].d[0];
   }
 
   int initialize() override { return 0; }
@@ -140,8 +138,32 @@ public:
     
   }
 
-  IPluginV2 *clone() const override {
-    return new NMSPlugin(_nms_thresh, _detections_per_im);
+  // IPluginV2Ext Methods
+  DataType getOutputDataType(int index, const DataType* inputTypes, int nbInputs) const
+  {
+    assert(index < 3);
+    return DataType::kFLOAT;
+  }
+
+  bool isOutputBroadcastAcrossBatch(int outputIndex, const bool* inputIsBroadcasted, 
+    int nbInputs) const { return false; }
+
+  bool canBroadcastInputAcrossBatch(int inputIndex) const { return false; }
+
+  void configurePlugin(const Dims* inputDims, int nbInputs, const Dims* outputDims, int nbOutputs,
+    const DataType* inputTypes, const DataType* outputTypes, const bool* inputIsBroadcast,
+    const bool* outputIsBroadcast, PluginFormat floatFormat, int maxBatchSize)
+  {
+    assert(*inputTypes == nvinfer1::DataType::kFLOAT &&
+      floatFormat == nvinfer1::PluginFormat::kLINEAR);
+    assert(nbInputs == 3);
+    assert(inputDims[0].d[0] == inputDims[2].d[0]);
+    assert(inputDims[1].d[0] == inputDims[2].d[0] * 4);
+    _count = inputDims[0].d[0];
+  }
+
+  IPluginV2Ext *clone() const override {
+    return new NMSPlugin(_nms_thresh, _detections_per_im, _count);
   }
 
 private:

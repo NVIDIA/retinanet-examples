@@ -114,7 +114,7 @@ vector<at::Tensor> infer(retinanet::Engine &engine, at::Tensor data) {
         buffers.push_back(buffer.data<float>());
     }
 
-    engine.infer(buffers, batch);
+    engine.infer(buffers);
 
     return {scores, boxes, classes};
 }

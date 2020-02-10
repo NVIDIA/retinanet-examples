@@ -43,7 +43,7 @@ public:
         , _currentBatch(0)
         , _maxBatches(_calibrationImages.size() / _batchSize)
         , _inputDims(inputDims) {
-        _batch.resize(_batchSize * _inputDims.d[0] * _inputDims.d[1] * _inputDims.d[2]);
+        _batch.resize(_batchSize * _inputDims.d[1] * _inputDims.d[2] * _inputDims.d[3]);
     }
 
     int getBatchSize() const { return _batchSize;}
@@ -61,7 +61,7 @@ public:
 
         for (int i = 0; i < _batchSize; i++) {
             auto image = imread(_calibrationImages[_batchSize * _currentBatch + i].c_str(), IMREAD_COLOR);
-            cv::resize(image, image, Size(_inputDims.d[2], _inputDims.d[1]));
+            cv::resize(image, image, Size(_inputDims.d[3], _inputDims.d[2]));
             cv::Mat pixels;
             image.convertTo(pixels, CV_32FC3, 1.0 / 255, 0);
 
@@ -72,8 +72,8 @@ public:
             else
                 return false;
 
-            auto hw = _inputDims.d[1] * _inputDims.d[2];
-            auto channels = _inputDims.d[0];
+            auto hw = _inputDims.d[2] * _inputDims.d[3];
+            auto channels = _inputDims.d[1];
             auto vol = channels * hw;
 
             for (int c = 0; c < channels; c++) {
@@ -112,7 +112,7 @@ public:
         , _calibrationCacheName(calibrationCacheName)
         , _readCache(readCache) {
             Dims d = _stream.getInputDims();
-            _inputCount = _stream.getBatchSize() * d.d[0] * d.d[1] * d.d[2];
+            _inputCount = _stream.getBatchSize() * d.d[1] * d.d[2] * d.d[3];
             cudaMalloc(&_deviceInput, _inputCount * sizeof(float));
         }
 
@@ -154,7 +154,7 @@ private:
 
         assert(_networkName.length() > 0);
         Dims d = _stream.getInputDims();
-        return std::string("Int8CalibrationTable_") + _networkName + to_string(d.d[1]) + "x" + to_string(d.d[2]) + "_" + to_string(_stream.getMaxBatches());
+        return std::string("Int8CalibrationTable_") + _networkName + to_string(d.d[2]) + "x" + to_string(d.d[3]) + "_" + to_string(_stream.getMaxBatches());
     }
 
     ImageStream _stream;
