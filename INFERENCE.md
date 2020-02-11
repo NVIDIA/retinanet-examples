@@ -4,7 +4,7 @@ We provide two ways to do inference with `retinanet-examples`:
 * PyTorch inference using a trained model (FP32 or FP16 precision)
 * Export trained pytorch model to TensorRT for optimized inference (FP32, FP16 or INT8 precision)
 
-`retinanet-examples infer` will run distributed inference across all available GPUs. When using PyTorch, the default behavior is to run inference with mixed precision. The precision used when running inference with a TensorRT engine will correspond to the precision chosen when the model was exported to TensorRT (see [TensorRT section](#exporting-trained-pytorch-model-to-tensorrt section) below). 
+`retinanet-examples infer` will run distributed inference across all available GPUs. When using PyTorch, the default behavior is to run inference with mixed precision. The precision used when running inference with a TensorRT engine will correspond to the precision chosen when the model was exported to TensorRT (see [TensorRT section](#exporting-trained-pytorch-model-to-tensorrt) section below). 
 
 **NOTE**: Availability of HW support for fast FP16 and INT8 precision like [NVIDIA Tensor Cores](https://www.nvidia.com/en-us/data-center/tensorcore/) depends on your GPU architecture: Volta or newer GPUs support both FP16 and INT8, and Pascal GPUs can support either FP16 or INT8. 
 
