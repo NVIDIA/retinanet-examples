@@ -130,7 +130,9 @@ When converting the annotations from your own dataset into JSON, the following e
         "id" : int,
         "image_id" : int, 
         "category_id" : int,
-        "bbox" : [x, y, w, h]
+        "bbox" : [x, y, w, h],
+        "iscrowd": 0,
+        "area": w * h
     }],
     "categories": [{
         "id" : int
