@@ -52,7 +52,7 @@ public:
     void save(const string &path);
 
     // Infer using pre-allocated GPU buffers {data, scores, boxes, classes}
-    void infer(vector<void *> &buffers, int batch=1);
+    void infer(vector<void *> &buffers);
 
     // Get (h, w) size of the fixed input
     vector<int> getInputSize();

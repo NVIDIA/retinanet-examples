@@ -205,7 +205,7 @@ class Model(nn.Module):
 
     def export(self, size, batch, precision, calibration_files, calibration_table, verbose, onnx_only=False):
 
-        import torch.onnx.symbolic_opset9 as onnx_symbolic
+        import torch.onnx.symbolic_opset11 as onnx_symbolic
         def upsample_nearest2d(g, input, output_size):
             # Currently, TRT 5.1/6.0 ONNX Parser does not support all ONNX ops
             # needed to support dynamic upsampling ONNX forumlation
@@ -220,8 +220,8 @@ class Model(nn.Module):
         self.exporting = True
         onnx_bytes = io.BytesIO()
         zero_input = torch.zeros([1, 3, *size]).cuda()
-        extra_args = { 'verbose': verbose }
-        torch.onnx.export(self.cuda(), zero_input, onnx_bytes, *extra_args)
+        extra_args = {'opset_version': 11, 'verbose': verbose}
+        torch.onnx.export(self.cuda(), zero_input, onnx_bytes, **extra_args)
         self.exporting = False
 
         if onnx_only:
@@ -231,5 +231,7 @@ class Model(nn.Module):
         model_name = '_'.join([k for k, _ in self.backbones.items()])
         anchors = [generate_anchors(stride, self.ratios, self.scales).view(-1).tolist() 
             for stride in self.strides]
+        # Set batch_size = 1 batch/GPU for EXPLICIT_BATCH compatibility in TRT
+        batch = 1
         return Engine(onnx_bytes.getvalue(), len(onnx_bytes.getvalue()), batch, precision,
             self.threshold, self.top_n, anchors, self.nms, self.detections, calibration_files, model_name, calibration_table, verbose)

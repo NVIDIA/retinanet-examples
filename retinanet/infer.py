@@ -17,6 +17,10 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
     'Run inference on images from path'
 
     backend = 'pytorch' if isinstance(model, Model) or isinstance(model, DDP) else 'tensorrt'
+    
+    # Set batch_size = 1 batch/GPU for EXPLICIT_BATCH compatibility in TRT
+    if backend is 'tensorrt':
+        batch_size = world
 
     stride = model.module.stride if isinstance(model, DDP) else model.stride
 
@@ -54,7 +58,7 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
         print('    device: {} {}'.format(
             world, 'cpu' if not torch.cuda.is_available() else 'gpu' if world == 1 else 'gpus'))
         print('     batch: {}, precision: {}'.format(batch_size,
-            'unknown' if backend is 'tensorrt' else 'mixed' if mixed_precision else 'full'))
+                'unknown' if backend is 'tensorrt' else 'mixed' if mixed_precision else 'full'))
         print('Running inference...')
 
     results = []

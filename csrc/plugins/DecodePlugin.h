@@ -37,7 +37,7 @@ using namespace nvinfer1;
 
 namespace retinanet {
 
-class DecodePlugin : public IPluginV2 {
+class DecodePlugin : public IPluginV2Ext {
   float _score_thresh;
   int _top_n;
   std::vector<float> _anchors;
@@ -92,6 +92,11 @@ public:
   DecodePlugin(float score_thresh, int top_n, std::vector<float> const& anchors, int scale)
     : _score_thresh(score_thresh), _top_n(top_n), _anchors(anchors), _scale(scale) {}
 
+  DecodePlugin(float score_thresh, int top_n, std::vector<float> const& anchors, int scale,
+    size_t height, size_t width, size_t num_anchors, size_t num_classes)
+    : _score_thresh(score_thresh), _top_n(top_n), _anchors(anchors), _scale(scale),
+      _height(height), _width(width), _num_anchors(num_anchors), _num_classes(num_classes) {}
+
   DecodePlugin(void const* data, size_t length) {
       this->deserialize(data, length);
   }
@@ -117,20 +122,6 @@ public:
 
   bool supportsFormat(DataType type, PluginFormat format) const override {
     return type == DataType::kFLOAT && format == PluginFormat::kLINEAR;
-  }
-
-  void configureWithFormat(const Dims* inputDims, int nbInputs, const Dims* outputDims, 
-                        int nbOutputs, DataType type, PluginFormat format, int maxBatchSize) override {
-    assert(type == nvinfer1::DataType::kFLOAT && format == nvinfer1::PluginFormat::kLINEAR);
-    assert(nbInputs == 2);
-    auto const& scores_dims = inputDims[0];
-    auto const& boxes_dims = inputDims[1];
-    assert(scores_dims.d[1] == boxes_dims.d[1]);
-    assert(scores_dims.d[2] == boxes_dims.d[2]);
-    _height = scores_dims.d[1];
-    _width = scores_dims.d[2];
-    _num_anchors = boxes_dims.d[0] / 4; 
-    _num_classes = scores_dims.d[0] / _num_anchors;
   }
 
   int initialize() override { return 0; }
@@ -167,8 +158,39 @@ public:
 
   }
 
-  IPluginV2 *clone() const override {
-    return new DecodePlugin(_score_thresh, _top_n, _anchors, _scale);
+  // IPluginV2Ext Methods
+  DataType getOutputDataType(int index, const DataType* inputTypes, int nbInputs) const
+  {
+    assert(index < 3);
+    return DataType::kFLOAT;
+  }
+
+  bool isOutputBroadcastAcrossBatch(int outputIndex, const bool* inputIsBroadcasted, 
+    int nbInputs) const { return false; }
+
+  bool canBroadcastInputAcrossBatch(int inputIndex) const { return false; }
+
+  void configurePlugin(const Dims* inputDims, int nbInputs, const Dims* outputDims, int nbOutputs,
+    const DataType* inputTypes, const DataType* outputTypes, const bool* inputIsBroadcast,
+    const bool* outputIsBroadcast, PluginFormat floatFormat, int maxBatchSize)
+  {
+    assert(*inputTypes == nvinfer1::DataType::kFLOAT && 
+      floatFormat == nvinfer1::PluginFormat::kLINEAR);
+    assert(nbInputs == 2);
+    assert(nbOutputs == 3);
+    auto const& scores_dims = inputDims[0];
+    auto const& boxes_dims = inputDims[1];
+    assert(scores_dims.d[1] == boxes_dims.d[1]);
+    assert(scores_dims.d[2] == boxes_dims.d[2]);
+    _height = scores_dims.d[1];
+    _width = scores_dims.d[2];
+    _num_anchors = boxes_dims.d[0] / 4; 
+    _num_classes = scores_dims.d[0] / _num_anchors;
+  }
+
+  IPluginV2Ext *clone() const override {
+    return new DecodePlugin(_score_thresh, _top_n, _anchors, _scale, _height, _width, 
+      _num_anchors, _num_classes);
   }
 
 private:
