@@ -31,6 +31,12 @@ ResNet152FPN | 800 | 0.393 | 12 hrs | 25 ms/im | 24 ms/im
 
 Training results for [COCO 2017](http://cocodataset.org/#detection-2017) (train/val) after full training schedule with default parameters. Inference results include bounding boxes post-processing for a batch size of 1.
 
+## Jetpack compatibility
+
+This branch uses TensorRT 6. If you wish to deploy your model to a Jetson device (eg - Jetson AGX Xavier) running Jetpack version 4.3, then you should use this `19.10` branch of this repo.
+
+If you are only deploying TensorRT engines on Tesla GPUs (eg V100, T4), then you should use the `master` branch.
+
 ## Installation
 
 For best performance, we encourage using the latest [PyTorch NGC docker container](https://ngc.nvidia.com/catalog/containers/nvidia:pytorch):

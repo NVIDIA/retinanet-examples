@@ -14,3 +14,6 @@ dist
 *.pkl
 *.torch
 *.plan
+
+.idea
+venv/
