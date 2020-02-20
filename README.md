@@ -2,6 +2,12 @@
 
 **Fast** and **accurate** single stage object detection with end-to-end GPU optimization.
 
+## Jetpack compatibility
+
+This branch uses TensorRT 7. If you are training and infering models using PyTorch, or are creating TensorRT enginges on Tesla GPUs (eg V100, T4), then you should use this branch.
+
+If you wish to deploy your model to a Jetson device (eg Jetson AGX Xavier) running Jetpack version 4.3, then you should use the `19.10` branch of this repo.
+
 ## Description
 
 [RetinaNet](#references) is a single shot object detector with multiple backbones offering various performance/accuracy trade-offs.
