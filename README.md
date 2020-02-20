@@ -2,12 +2,6 @@
 
 **Fast** and **accurate** single stage object detection with end-to-end GPU optimization.
 
-## Jetpack compatibility
-
-This branch uses TensorRT 7. If you are training and infering models using PyTorch, or are creating TensorRT engines on Tesla GPUs (eg V100, T4), then you should use this branch.
-
-If you wish to deploy your model to a Jetson device (eg Jetson AGX Xavier) running Jetpack version 4.3, then you should use the `19.10` branch of this repo.
-
 ## Description
 
 [RetinaNet](#references) is a single shot object detector with multiple backbones offering various performance/accuracy trade-offs.
@@ -36,6 +30,12 @@ ResNet101FPN | 800 | 0.376 | 10 hrs | 20 ms/im | 20 ms/im
 ResNet152FPN | 800 | 0.393 | 12 hrs | 25 ms/im | 24 ms/im
 
 Training results for [COCO 2017](http://cocodataset.org/#detection-2017) (train/val) after full training schedule with default parameters. Inference results include bounding boxes post-processing for a batch size of 1.
+
+## Jetpack compatibility
+
+This branch uses TensorRT 7. If you are training and infering models using PyTorch, or are creating TensorRT engines on Tesla GPUs (eg V100, T4), then you should use this branch.
+
+If you wish to deploy your model to a Jetson device (eg Jetson AGX Xavier) running Jetpack version 4.3, then you should use the `19.10` branch of this repo.
 
 ## Installation
 
