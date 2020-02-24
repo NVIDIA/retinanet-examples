@@ -10,7 +10,7 @@ from pycocotools.coco import COCO
 class CocoDataset(data.dataset.Dataset):
     'Dataset looping through a set of images'
 
-    def __init__(self, path, resize, max_size, stride, annotations=None, training=False):
+    def __init__(self, path, resize, max_size, stride, annotations=None, training=False, rotate_augment=False):
         super().__init__()
 
         self.path = os.path.expanduser(path)
@@ -20,6 +20,7 @@ class CocoDataset(data.dataset.Dataset):
         self.mean = [0.485, 0.456, 0.406]
         self.std = [0.229, 0.224, 0.225]
         self.training = training
+        self.rotate_augment = rotate_augment
 
         with redirect_stdout(None):
             self.coco = COCO(annotations)
@@ -53,6 +54,26 @@ class CocoDataset(data.dataset.Dataset):
             # Get annotations
             boxes, categories = self._get_target(id)
             boxes *= ratio
+
+            # Random rotation, if self.rotate_augment
+            random_angle = random.randint(0, 3) * 90
+            if self.rotate_augment and random_angle != 0:
+                # rotate by random_angle degrees.
+                im = im.rotate(random_angle)
+                x, y, w, h = boxes[:, 0].clone(), boxes[:, 1].clone(), boxes[:, 2].clone(), boxes[:, 3].clone()
+                if random_angle == 90:
+                    boxes[:, 0] = y
+                    boxes[:, 1] = im.size[1] - x - w
+                    boxes[:, 2] = h
+                    boxes[:, 3] = w
+                elif random_angle == 180:
+                    boxes[:, 0] = im.size[0] - x - w
+                    boxes[:, 1] = im.size[1] - y - h
+                elif random_angle == 270:
+                    boxes[:, 0] = im.size[0] - y - h
+                    boxes[:, 1] = x
+                    boxes[:, 2] = h
+                    boxes[:, 3] = w
 
             # Random horizontal flip
             if random.randint(0, 1):
@@ -134,12 +155,13 @@ class CocoDataset(data.dataset.Dataset):
 class DataIterator():
     'Data loader for data parallel'
 
-    def __init__(self, path, resize, max_size, batch_size, stride, world, annotations, training=False):
+    def __init__(self, path, resize, max_size, batch_size, stride, world, annotations, training=False,
+                 rotate_augment=False):
         self.resize = resize
         self.max_size = max_size
 
         self.dataset = CocoDataset(path, resize=resize, max_size=max_size,
-            stride=stride, annotations=annotations, training=training)
+            stride=stride, annotations=annotations, training=training, rotate_augment=rotate_augment)
         self.ids = self.dataset.ids
         self.coco = self.dataset.coco
     

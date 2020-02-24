@@ -68,7 +68,8 @@ class COCOPipeline(pipeline.Pipeline):
 class DaliDataIterator():
     'Data loader for data parallel using Dali'
 
-    def __init__(self, path, resize, max_size, batch_size, stride, world, annotations, training=False):
+    def __init__(self, path, resize, max_size, batch_size, stride, world, annotations, training=False,
+                 rotate_augment=False):
         self.training = training
         self.resize = resize
         self.max_size = max_size
@@ -78,6 +79,7 @@ class DaliDataIterator():
         self.std = [255.*x for x in [0.229, 0.224, 0.225]]
         self.world = world
         self.path = path
+        self.rotate_augment=rotate_augment
 
         # Setup COCO
         with redirect_stdout(None):
