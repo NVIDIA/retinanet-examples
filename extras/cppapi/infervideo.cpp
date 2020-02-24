@@ -52,9 +52,9 @@ int main(int argc, char *argv[]) {
 	cudaMalloc(&boxes_d, num_det * 4 * sizeof(float));
 	cudaMalloc(&classes_d, num_det * sizeof(float));
 
-	auto scores = new float[num_det];
-	auto boxes = new float[num_det * 4];
-	auto classes = new float[num_det];
+	unique_ptr<float[]> scores(new float[num_det]);
+	unique_ptr<float[]> boxes(new float[num_det * 4]);
+	unique_ptr<float[]> classes(new float[num_det]);
 
 	vector<float> mean {0.485, 0.456, 0.406};
 	vector<float> std {0.229, 0.224, 0.225};
@@ -67,7 +67,8 @@ int main(int argc, char *argv[]) {
 	vector<float> img;
 	vector<float> data (channels * inputSize[0] * inputSize[1]);
 
-	while (1){
+	while(1)
+	{
 		src >> frame;
 		if (frame.empty()){
 			cout << "Finished inference!" << endl;
@@ -90,16 +91,15 @@ int main(int argc, char *argv[]) {
 		size_t dataSize = data.size() * sizeof(float);
 		cudaMemcpy(data_d, data.data(), dataSize, cudaMemcpyHostToDevice);
 
-
 		//Do inference
 		cout << "Inferring on frame: " << count <<"/" << nframes << endl;
 		count++;
 		vector<void *> buffers = { data_d, scores_d, boxes_d, classes_d };
-		engine.infer(buffers, 1);
+		engine.infer(buffers);
 
-		cudaMemcpy(scores, scores_d, sizeof(float) * num_det, cudaMemcpyDeviceToHost);
-		cudaMemcpy(boxes, boxes_d, sizeof(float) * num_det * 4, cudaMemcpyDeviceToHost);
-		cudaMemcpy(classes, classes_d, sizeof(float) * num_det, cudaMemcpyDeviceToHost);
+		cudaMemcpy(scores.get(), scores_d, sizeof(float) * num_det, cudaMemcpyDeviceToHost);
+		cudaMemcpy(boxes.get(), boxes_d, sizeof(float) * num_det * 4, cudaMemcpyDeviceToHost);
+		cudaMemcpy(classes.get(), classes_d, sizeof(float) * num_det, cudaMemcpyDeviceToHost);
 
 		// Get back the bounding boxes
 		for (int i = 0; i < num_det; i++) {
@@ -119,5 +119,9 @@ int main(int argc, char *argv[]) {
 	}
 	src.release();
 	sink.release();
+	cudaFree(data_d);
+	cudaFree(scores_d);
+	cudaFree(boxes_d);
+	cudaFree(classes_d);
 	return 0;
 }
