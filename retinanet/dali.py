@@ -69,7 +69,8 @@ class DaliDataIterator():
     'Data loader for data parallel using Dali'
 
     def __init__(self, path, resize, max_size, batch_size, stride, world, annotations, training=False,
-                 rotate_augment=False):
+                 rotate_augment=False, augment_brightness=0.0,
+          augment_contrast=0.0, augment_hue=0.0, augment_saturation=0.0):
         self.training = training
         self.resize = resize
         self.max_size = max_size

@@ -6,11 +6,15 @@ import torch
 import torch.nn.functional as F
 from torch.utils import data
 from pycocotools.coco import COCO
+from torchvision.transforms.functional import adjust_brightness, adjust_contrast, adjust_hue, adjust_saturation)
 
 class CocoDataset(data.dataset.Dataset):
     'Dataset looping through a set of images'
 
-    def __init__(self, path, resize, max_size, stride, annotations=None, training=False, rotate_augment=False):
+    def __init__(self, path, resize, max_size, stride, annotations=None, training=False, rotate_augment=False,
+                 augment_brightness=0.0, augment_contrast=0.0,
+                 augment_hue=0.0, augment_saturation=0.0
+                 ):
         super().__init__()
 
         self.path = os.path.expanduser(path)
@@ -21,6 +25,10 @@ class CocoDataset(data.dataset.Dataset):
         self.std = [0.229, 0.224, 0.225]
         self.training = training
         self.rotate_augment = rotate_augment
+        self.augment_brightness = augment_brightness
+        self.augment_contrast = augment_contrast
+        self.augment_hue = augment_hue
+        self.augment_saturation = augment_saturation
 
         with redirect_stdout(None):
             self.coco = COCO(annotations)
@@ -79,6 +87,20 @@ class CocoDataset(data.dataset.Dataset):
             if random.randint(0, 1):
                 im = im.transpose(Image.FLIP_LEFT_RIGHT)
                 boxes[:, 0] = im.size[0] - boxes[:, 0] - boxes[:, 2]
+
+            # Apply image brightness, contrast etc augmentation
+            if self.augment_brightness:
+                brightness_factor = random.normalvariate(1, self.augment_brightness)
+                im = adjust_brightness(im, brightness_factor)
+            if self.augment_contrast:
+                contrast_factor = random.normalvariate(1, self.augment_contrast)
+                im = adjust_contrast(im, contrast_factor)
+            if self.augment_hue:
+                hue_factor = random.normalvariate(0, self.augment_hue)
+                im = adjust_hue(im, hue_factor)
+            if self.augment_saturation:
+                saturation_factor = random.normalvariate(1, self.augment_saturation)
+                im = adjust_saturation(im, saturation_factor)
 
             target = torch.cat([boxes, categories], dim=1)
 
@@ -156,12 +178,17 @@ class DataIterator():
     'Data loader for data parallel'
 
     def __init__(self, path, resize, max_size, batch_size, stride, world, annotations, training=False,
-                 rotate_augment=False):
+                 rotate_augment=False, augment_brightness=0.0,
+          augment_contrast=0.0, augment_hue=0.0, augment_saturation=0.0):
         self.resize = resize
         self.max_size = max_size
 
         self.dataset = CocoDataset(path, resize=resize, max_size=max_size,
-            stride=stride, annotations=annotations, training=training, rotate_augment=rotate_augment)
+            stride=stride, annotations=annotations, training=training, rotate_augment=rotate_augment,
+                                   augment_brightness=augment_brightness,
+                                   augment_contrast=augment_contrast, augment_hue=augment_hue,
+                                   augment_saturation=augment_saturation
+                                   )
         self.ids = self.dataset.ids
         self.coco = self.dataset.coco
     

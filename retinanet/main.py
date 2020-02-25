@@ -47,6 +47,14 @@ def parse(args):
     parser_train.add_argument('--val-iters', metavar='number', type=int, help='number of iterations between each validation', default=8000)
     parser_train.add_argument('--with-dali', help='use dali for data loading', action='store_true')
     parser_train.add_argument('--augment-rotate', help='use four-fold rotational augmentation', action='store_true')
+    parser_train.add_argument('--augment-brightness', metavar='value', type=float,
+                              help='adjust the brightness of the image.', default=0.0)
+    parser_train.add_argument('--augment-contrast', metavar='value', type=float,
+                              help='adjust the contrast of the image.', default=0.0)
+    parser_train.add_argument('--augment-hue', metavar='value', type=float,
+                              help='adjust the hue of the image.', default=0.0)
+    parser_train.add_argument('--augment-saturation', metavar='value', type=float,
+                              help='adjust the saturation of the image.', default=0.0)
 
     parser_infer = subparsers.add_parser('infer', help='run inference')
     parser_infer.add_argument('model', type=str, help='path to model')
@@ -125,7 +133,9 @@ def worker(rank, args, world, model, state):
             args.batch, int(args.iters * args.schedule), args.val_iters, not args.full_precision, args.lr, 
             args.warmup, [int(m * args.schedule) for m in args.milestones], args.gamma, 
             is_master=(rank == 0), world=world, use_dali=args.with_dali,
-            metrics_url=args.post_metrics, logdir=args.logdir, verbose=(rank == 0), rotate_augment=args.augment_rotate)
+            metrics_url=args.post_metrics, logdir=args.logdir, verbose=(rank == 0), rotate_augment=args.augment_rotate,
+                    augment_brightness=args.augment_brightness, augment_contrast=args.augment_contrast,
+                    augment_hue=args.augment_hue, augment_saturation=args.augment_saturation)
 
     elif args.command == 'infer':
         if model is None:
