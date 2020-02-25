@@ -16,8 +16,8 @@ from .infer import infer
 
 def train(model, state, path, annotations, val_path, val_annotations, resize, max_size, jitter, batch_size, iterations,
           val_iterations, mixed_precision, lr, warmup, milestones, gamma, is_master=True, world=1, use_dali=True,
-          verbose=True, metrics_url=None, logdir=None, rotate_augment=False, augment_brightness=args.augment_brightness,
-          augment_contrast=args.augment_contrast, augment_hue=args.augment_hue, augment_saturation=augment_saturation):
+          verbose=True, metrics_url=None, logdir=None, rotate_augment=False, augment_brightness=0.0,
+          augment_contrast=0.0, augment_hue=0.0, augment_saturation=0.0):
     'Train the model on the given dataset'
 
     # Prepare model

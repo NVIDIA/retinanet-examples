@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils import data
 from pycocotools.coco import COCO
-from torchvision.transforms.functional import adjust_brightness, adjust_contrast, adjust_hue, adjust_saturation)
+from torchvision.transforms.functional import adjust_brightness, adjust_contrast, adjust_hue, adjust_saturation
 
 class CocoDataset(data.dataset.Dataset):
     'Dataset looping through a set of images'
