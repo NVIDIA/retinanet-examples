@@ -91,15 +91,20 @@ class CocoDataset(data.dataset.Dataset):
             # Apply image brightness, contrast etc augmentation
             if self.augment_brightness:
                 brightness_factor = random.normalvariate(1, self.augment_brightness)
+                brightness_factor = max(0, brightness_factor)
                 im = adjust_brightness(im, brightness_factor)
             if self.augment_contrast:
                 contrast_factor = random.normalvariate(1, self.augment_contrast)
+                contrast_factor = max(0, contrast_factor)
                 im = adjust_contrast(im, contrast_factor)
             if self.augment_hue:
                 hue_factor = random.normalvariate(0, self.augment_hue)
+                hue_factor = max(-0.5, hue_factor)
+                hue_factor = min(0.5, hue_factor)
                 im = adjust_hue(im, hue_factor)
             if self.augment_saturation:
                 saturation_factor = random.normalvariate(1, self.augment_saturation)
+                saturation_factor = max(0, saturation_factor)
                 im = adjust_saturation(im, saturation_factor)
 
             target = torch.cat([boxes, categories], dim=1)

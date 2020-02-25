@@ -55,6 +55,8 @@ def parse(args):
                               help='adjust the hue of the image.', default=0.0)
     parser_train.add_argument('--augment-saturation', metavar='value', type=float,
                               help='adjust the saturation of the image.', default=0.0)
+    parser_train.add_argument('--regularization-l2', metavar='value', type=float, help='L2 regularization for optim',
+                              default=0.0001)
 
     parser_infer = subparsers.add_parser('infer', help='run inference')
     parser_infer.add_argument('model', type=str, help='path to model')
@@ -135,7 +137,8 @@ def worker(rank, args, world, model, state):
             is_master=(rank == 0), world=world, use_dali=args.with_dali,
             metrics_url=args.post_metrics, logdir=args.logdir, verbose=(rank == 0), rotate_augment=args.augment_rotate,
                     augment_brightness=args.augment_brightness, augment_contrast=args.augment_contrast,
-                    augment_hue=args.augment_hue, augment_saturation=args.augment_saturation)
+                    augment_hue=args.augment_hue, augment_saturation=args.augment_saturation,
+                    regularization_l2=args.regularization_l2)
 
     elif args.command == 'infer':
         if model is None:

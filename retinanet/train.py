@@ -17,7 +17,7 @@ from .infer import infer
 def train(model, state, path, annotations, val_path, val_annotations, resize, max_size, jitter, batch_size, iterations,
           val_iterations, mixed_precision, lr, warmup, milestones, gamma, is_master=True, world=1, use_dali=True,
           verbose=True, metrics_url=None, logdir=None, rotate_augment=False, augment_brightness=0.0,
-          augment_contrast=0.0, augment_hue=0.0, augment_saturation=0.0):
+          augment_contrast=0.0, augment_hue=0.0, augment_saturation=0.0, regularization_l2=0.0001):
     'Train the model on the given dataset'
 
     # Prepare model
@@ -30,7 +30,8 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
 
     # Setup optimizer and schedule
     # optimizer = SGD(model.parameters(), lr=lr, weight_decay=0.0001, momentum=0.9)
-    optimizer = AdamW(model.parameters(), lr=lr, weight_decay=0.0001)
+    # optimizer = AdamW(model.parameters(), lr=lr, weight_decay=0.0001)
+    optimizer = AdamW(model.parameters(), lr=lr, weight_decay=regularization_l2)
 
     model, optimizer = amp.initialize(model, optimizer,
                                       opt_level='O2' if mixed_precision else 'O0',
