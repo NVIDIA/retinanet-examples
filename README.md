@@ -33,15 +33,15 @@ Training results for [COCO 2017](http://cocodataset.org/#detection-2017) (train/
 
 ## Jetpack compatibility
 
-This branch uses TensorRT 7. If you are training and infering models using PyTorch, or are creating TensorRT engines on Tesla GPUs (eg V100, T4), then you should use this branch.
+This branch uses TensorRT 7. If you are training and inferring models using PyTorch, or are creating TensorRT engines on Tesla GPUs (eg V100, T4), then you should use this branch.
 
-If you wish to deploy your model to a Jetson device (eg Jetson AGX Xavier) running Jetpack version 4.3, then you should use the `19.10` branch of this repo.
+If you wish to deploy your model to a Jetson device (eg - Jetson AGX Xavier) running Jetpack version 4.3, then you should use the `19.10` branch of this repo.
 
 ## Installation
 
 For best performance, we encourage using the latest [PyTorch NGC docker container](https://ngc.nvidia.com/catalog/containers/nvidia:pytorch):
 ```bash
-docker run --gpus all --rm --ipc=host -it nvcr.io/nvidia/pytorch:20.01-py3
+docker run --gpus all --rm --ipc=host -it nvcr.io/nvidia/pytorch:20.02-py3
 ```
 
 From the container, simply install retinanet using `pip`:
