@@ -3,10 +3,9 @@ from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
 setup(
     name='retinanet',
-    version='0.1',
+    version='0.1.1',
     description='Fast and accurate single shot object detector',
     author = 'NVIDIA Corporation',
-    author_email='fchabert@nvidia.com',
     packages=['retinanet', 'retinanet.backbones'],
     ext_modules=[CUDAExtension('retinanet._C',
         ['csrc/extensions.cpp', 'csrc/engine.cpp', 'csrc/cuda/decode.cu', 'csrc/cuda/nms.cu'],
