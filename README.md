@@ -13,43 +13,12 @@ It is optimized for end-to-end GPU processing using:
 * NVIDIA [TensorRT](https://developer.nvidia.com/tensorrt) for high-performance inference
 * NVIDIA [DeepStream](https://developer.nvidia.com/deepstream-sdk) for optimized real-time video streams support
 
-## Disclaimer
-
-This is a research project, not an official NVIDIA product.
-
-## Performance
-
-The detection pipeline allows the user to select a specific backbone depending on the latency-accuracy trade-off preferred.
-
-Backbone | Resize | mAP @[IoU=0.50:0.95] | Training Time on [DGX1v](https://www.nvidia.com/en-us/data-center/dgx-1/) | TensorRT Inference Latency FP16 on [V100](https://www.nvidia.com/en-us/data-center/tesla-v100/) | TensorRT Inference Latency INT8 on [T4](https://www.nvidia.com/en-us/data-center/tesla-t4/)
---- | :---: | :---: | :---: | :---: | :---:
-ResNet18FPN | 800 | 0.318 | 5 hrs  | 12 ms/im | 12 ms/im
-ResNet34FPN | 800 | 0.343 | 6 hrs  | 14 ms/im | 14 ms/im
-ResNet50FPN | 800 | 0.358 | 7 hrs  | 16 ms/im | 16 ms/im
-ResNet101FPN | 800 | 0.376 | 10 hrs | 20 ms/im | 20 ms/im
-ResNet152FPN | 800 | 0.393 | 12 hrs | 25 ms/im | 24 ms/im
-
-Training results for [COCO 2017](http://cocodataset.org/#detection-2017) (train/val) after full training schedule with default parameters. Inference results include bounding boxes post-processing for a batch size of 1.
-
-## Jetpack compatibility
-
-This branch uses TensorRT 7. If you are training and infering models using PyTorch, or are creating TensorRT engines on Tesla GPUs (eg V100, T4), then you should use this branch.
-
-If you wish to deploy your model to a Jetson device (eg Jetson AGX Xavier) running Jetpack version 4.3, then you should use the `19.10` branch of this repo.
+### Change log
+This is version 0.1.1. It introduces rotational and brightness augmentation. See the [CHANGE LOG](CHANGELOG.md) for more information.
 
 ## Installation
 
-For best performance, we encourage using the latest [PyTorch NGC docker container](https://ngc.nvidia.com/catalog/containers/nvidia:pytorch):
-```bash
-docker run --gpus all --rm --ipc=host -it nvcr.io/nvidia/pytorch:20.01-py3
-```
-
-From the container, simply install retinanet using `pip`:
-```bash
-pip install --no-cache-dir git+https://github.com/nvidia/retinanet-examples
-```
-
-Or you can clone this repository, build and run your own image:
+For best performance, use the latest [PyTorch NGC docker container](https://ngc.nvidia.com/catalog/containers/nvidia:pytorch). Clone this repository, build and run your own image:
 ```bash
 git clone https://github.com/nvidia/retinanet-examples
 docker build -t retinanet:latest retinanet-examples/
@@ -58,9 +27,8 @@ docker run --gpus all --rm --ipc=host -it retinanet:latest
 
 ## Usage
 
-Training, inference, evaluation and model export can be done through the `retinanet` utility.
-
-For more details refer to the [INFERENCE](INFERENCE.md) and [TRAINING](TRAINING.md) documentation.
+Training, inference, evaluation and model export can be done through the `retinanet` utility. 
+For more details, including a list of parameters, please refer to the [TRAINING](TRAINING.md) and [INFERENCE](INFERENCE.md) documentation.
 
 ### Training
 
@@ -102,7 +70,6 @@ For faster inference, export the detection model to an optimized FP16 TensorRT e
 ```bash
 retinanet export model.pth engine.plan
 ```
-Note: for older versions of TensorRT (prior to TensorRT 5.1 / 19.03 containers) the ONNX opset version should be specified (using `--opset 8` for instance).
 
 Evaluate the model with TensorRT backend on [COCO 2017](http://cocodataset.org/#download):
 ```bash
@@ -136,13 +103,39 @@ When converting the annotations from your own dataset into JSON, the following e
         "id" : int,
         "image_id" : int, 
         "category_id" : int,
-        "bbox" : [x, y, w, h]
+        "bbox" : [x, y, w, h]   # all floats
+        "area": float           # w * h. Required for validation scores
+        "iscrowd": 0            # Required for validation scores
     }],
     "categories": [{
         "id" : int
     ]}
 }
 ```
+
+## Disclaimer
+
+This is a research project, not an official NVIDIA product.
+
+## Performance
+
+The detection pipeline allows the user to select a specific backbone depending on the latency-accuracy trade-off preferred.
+
+Backbone | Resize | mAP @[IoU=0.50:0.95] | Training Time on [DGX1v](https://www.nvidia.com/en-us/data-center/dgx-1/) | TensorRT Inference Latency FP16 on [V100](https://www.nvidia.com/en-us/data-center/tesla-v100/) | TensorRT Inference Latency INT8 on [T4](https://www.nvidia.com/en-us/data-center/tesla-t4/)
+--- | :---: | :---: | :---: | :---: | :---:
+ResNet18FPN | 800 | 0.318 | 5 hrs  | 12 ms/im | 12 ms/im
+ResNet34FPN | 800 | 0.343 | 6 hrs  | 14 ms/im | 14 ms/im
+ResNet50FPN | 800 | 0.358 | 7 hrs  | 16 ms/im | 16 ms/im
+ResNet101FPN | 800 | 0.376 | 10 hrs | 20 ms/im | 20 ms/im
+ResNet152FPN | 800 | 0.393 | 12 hrs | 25 ms/im | 24 ms/im
+
+Training results for [COCO 2017](http://cocodataset.org/#detection-2017) (train/val) after full training schedule with default parameters. Inference results include bounding boxes post-processing for a batch size of 1.
+
+## Jetpack compatibility
+
+This branch uses TensorRT 7. If you are training and infering models using PyTorch, or are creating TensorRT engines on Tesla GPUs (eg V100, T4), then you should use this branch.
+
+If you wish to deploy your model to a Jetson device (eg Jetson AGX Xavier) running Jetpack version 4.3, then you should use the `19.10` branch of this repo.
 
 ## References
 

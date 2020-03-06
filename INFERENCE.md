@@ -72,6 +72,8 @@ Build an INT8 engine for a previously calibrated model:
 retinanet-examples export model.pth model_int8.plan --batch 2 --int8 --calibration-table model_calibration_table
 ```
 
+Note: for older versions of TensorRT (prior to TensorRT 5.1 / 19.03 containers) the ONNX opset version should be specified (using `--opset 8` for instance).
+
 
 ## Deployment with TensorRT on NVIDIA Jetson AGX Xavier
 

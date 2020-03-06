@@ -48,13 +48,13 @@ def parse(args):
     parser_train.add_argument('--with-dali', help='use dali for data loading', action='store_true')
     parser_train.add_argument('--augment-rotate', help='use four-fold rotational augmentation', action='store_true')
     parser_train.add_argument('--augment-brightness', metavar='value', type=float,
-                              help='adjust the brightness of the image.', default=0.0)
+                              help='adjust the brightness of the image.', default=0.05)
     parser_train.add_argument('--augment-contrast', metavar='value', type=float,
-                              help='adjust the contrast of the image.', default=0.0)
+                              help='adjust the contrast of the image.', default=0.05)
     parser_train.add_argument('--augment-hue', metavar='value', type=float,
-                              help='adjust the hue of the image.', default=0.0)
+                              help='adjust the hue of the image.', default=0.01)
     parser_train.add_argument('--augment-saturation', metavar='value', type=float,
-                              help='adjust the saturation of the image.', default=0.0)
+                              help='adjust the saturation of the image.', default=0.05)
     parser_train.add_argument('--regularization-l2', metavar='value', type=float, help='L2 regularization for optim',
                               default=0.0001)
 

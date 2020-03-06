@@ -29,9 +29,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
         model = model.cuda()
 
     # Setup optimizer and schedule
-    # optimizer = SGD(model.parameters(), lr=lr, weight_decay=0.0001, momentum=0.9)
-    # optimizer = AdamW(model.parameters(), lr=lr, weight_decay=0.0001)
-    optimizer = AdamW(model.parameters(), lr=lr, weight_decay=regularization_l2)
+    optimizer = SGD(model.parameters(), lr=lr, weight_decay=regularization_l2, momentum=0.9)
 
     model, optimizer = amp.initialize(model, optimizer,
                                       opt_level='O2' if mixed_precision else 'O0',
@@ -121,19 +119,13 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
                 box_loss = torch.stack(list(box_losses)).mean().item()
                 learning_rate = optimizer.param_groups[0]['lr']
                 if verbose:
-                    msg = '{},'.format(iteration)
-                    msg += '{:.4f},'.format(focal_loss)
-                    msg += '{:.4f},'.format(box_loss)
-                    msg += '{:.1f} im/s'.format(batch_size / profiler.means['train'])
+                    msg = '[{:{len}}/{}]'.format(iteration, iterations, len=len(str(iterations)))
+                    msg += ' focal loss: {:.3f}'.format(focal_loss)
+                    msg += ', box loss: {:.3f}'.format(box_loss)
+                    msg += ', {:.3f}s/{}-batch'.format(profiler.means['train'], batch_size)
+                    msg += ' (fw: {:.3f}s, bw: {:.3f}s)'.format(profiler.means['fw'], profiler.means['bw'])
+                    msg += ', {:.1f} im/s'.format(batch_size / profiler.means['train'])
                     msg += ', lr: {:.2g}'.format(learning_rate)
-
-                    # msg = '[{:{len}}/{}]'.format(iteration, iterations, len=len(str(iterations)))
-                    # msg += ' focal loss: {:.3f}'.format(focal_loss)
-                    # msg += ', box loss: {:.3f}'.format(box_loss)
-                    # msg += ', {:.3f}s/{}-batch'.format(profiler.means['train'], batch_size)
-                    # msg += ' (fw: {:.3f}s, bw: {:.3f}s)'.format(profiler.means['fw'], profiler.means['bw'])
-                    # msg += ', {:.1f} im/s'.format(batch_size / profiler.means['train'])
-                    # msg += ', lr: {:.2g}'.format(learning_rate)
                     print(msg, flush=True)
 
                 if logdir is not None:

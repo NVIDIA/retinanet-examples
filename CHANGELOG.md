@@ -1,8 +1,12 @@
-# NVIDIA RetinaNet Pytorch Repo CHANGELOG
+# NVIDIA PyTorch RetinaNet change log
 
-## 2020-02-24
+## Version 0.1.1 -- 2020-03-06
 
-* Add training argument `--augment-rotate`
-  * This randomly rotates the training images by 0&deg;, 90&deg;, 180&deg; or 270&deg;.
-  * Omitting the `--augment-rotate` flag will keep the default behaviour of no rotation (0&deg;).
-  * This flag is in addition to the default horizontal flip with probability P(hflip) = 0.5.
+### Added
+ * `train` arguments
+   * `--augment-rotate`: Randomly rotates the training images by 0&deg;, 90&deg;, 180&deg; or 270&deg;.
+   * `--augment-brightness` : Randomly adjusts brightness of image
+   * `--augment-contrast` : Randomly adjusts contrast of image
+   * `--augment-hue` : Randomly adjusts hue of image
+   * `--augment-saturation` : Randomly adjusts saturation of image
+   * `--regularization-l2` : Sets the L2 regularization of the optimizer.

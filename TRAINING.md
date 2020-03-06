@@ -1,6 +1,6 @@
 # Training
 
-There are two main ways to train a model with `retinanet-examples`:
+There are two main ways to train a model with `retinanet`:
 * Fine-tuning the detection model using a model already trained on a large dataset (like MS-COCO)
 * Fully training the detection model from random initialization using a pre-trained backbone (usually on ImageNet)
 
