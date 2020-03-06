@@ -19,6 +19,7 @@ This is version 0.1.1. It introduces rotational and brightness augmentation. See
 ## Installation
 
 For best performance, use the latest [PyTorch NGC docker container](https://ngc.nvidia.com/catalog/containers/nvidia:pytorch). Clone this repository, build and run your own image:
+
 ```bash
 git clone https://github.com/nvidia/retinanet-examples
 docker build -t retinanet:latest retinanet-examples/

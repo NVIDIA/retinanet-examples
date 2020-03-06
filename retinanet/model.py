@@ -206,8 +206,8 @@ class Model(nn.Module):
     def export(self, size, batch, precision, calibration_files, calibration_table, verbose, onnx_only=False):
 
         import torch.onnx.symbolic_opset11 as onnx_symbolic
-        def upsample_nearest2d(g, input, output_size):
-            # Currently, TRT 5.1/6.0 ONNX Parser does not support all ONNX ops
+        def upsample_nearest2d(g, input, output_size, *args):
+            # Currently, TRT 5.1/6.0/7.0 ONNX Parser does not support all ONNX ops
             # needed to support dynamic upsampling ONNX forumlation
             # Here we hardcode scale=2 as a temporary workaround
             scales = g.op("Constant", value_t=torch.tensor([1.,1.,2.,2.]))
