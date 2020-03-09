@@ -1,7 +1,7 @@
 from statistics import mean
-from math import isfinite 
+from math import isfinite
 import torch
-from torch.optim import SGD
+from torch.optim import SGD, AdamW
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 from apex import amp, optimizers
@@ -13,7 +13,11 @@ from .dali import DaliDataIterator
 from .utils import ignore_sigint, post_metrics, Profiler
 from .infer import infer
 
-def train(model, state, path, annotations, val_path, val_annotations, resize, max_size, jitter, batch_size, iterations, val_iterations, mixed_precision, lr, warmup, milestones, gamma, is_master=True, world=1, use_dali=True, verbose=True, metrics_url=None, logdir=None):
+
+def train(model, state, path, annotations, val_path, val_annotations, resize, max_size, jitter, batch_size, iterations,
+          val_iterations, mixed_precision, lr, warmup, milestones, gamma, is_master=True, world=1, use_dali=True,
+          verbose=True, metrics_url=None, logdir=None, rotate_augment=False, augment_brightness=0.0,
+          augment_contrast=0.0, augment_hue=0.0, augment_saturation=0.0, regularization_l2=0.0001):
     'Train the model on the given dataset'
 
     # Prepare model
@@ -25,15 +29,15 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
         model = model.cuda()
 
     # Setup optimizer and schedule
-    optimizer = SGD(model.parameters(), lr=lr, weight_decay=0.0001, momentum=0.9) 
+    optimizer = SGD(model.parameters(), lr=lr, weight_decay=regularization_l2, momentum=0.9)
 
     model, optimizer = amp.initialize(model, optimizer,
-                                      opt_level = 'O2' if mixed_precision else 'O0',
-                                      keep_batchnorm_fp32 = True,
-                                      loss_scale = 128.0,
-                                      verbosity = is_master)
+                                      opt_level='O2' if mixed_precision else 'O0',
+                                      keep_batchnorm_fp32=True,
+                                      loss_scale=128.0,
+                                      verbosity=is_master)
 
-    if world > 1: 
+    if world > 1:
         model = DistributedDataParallel(model)
     model.train()
 
@@ -44,15 +48,16 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
         if warmup and train_iter <= warmup:
             return 0.9 * train_iter / warmup + 0.1
         return gamma ** len([m for m in milestones if m <= train_iter])
+
     scheduler = LambdaLR(optimizer, schedule)
 
     # Prepare dataset
     if verbose: print('Preparing dataset...')
     data_iterator = (DaliDataIterator if use_dali else DataIterator)(
         path, jitter, max_size, batch_size, stride,
-        world, annotations, training=True)
+        world, annotations, training=True, rotate_augment=rotate_augment, augment_brightness=augment_brightness,
+          augment_contrast=augment_contrast, augment_hue=augment_hue, augment_saturation=augment_saturation)
     if verbose: print(data_iterator)
-
 
     if verbose:
         print('    device: {} {}'.format(
@@ -114,7 +119,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
                 box_loss = torch.stack(list(box_losses)).mean().item()
                 learning_rate = optimizer.param_groups[0]['lr']
                 if verbose:
-                    msg  = '[{:{len}}/{}]'.format(iteration, iterations, len=len(str(iterations)))
+                    msg = '[{:{len}}/{}]'.format(iteration, iterations, len=len(str(iterations)))
                     msg += ' focal loss: {:.3f}'.format(focal_loss)
                     msg += ', box loss: {:.3f}'.format(box_loss)
                     msg += ', {:.3f}s/{}-batch'.format(profiler.means['train'], batch_size)
@@ -124,7 +129,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
                     print(msg, flush=True)
 
                 if logdir is not None:
-                    writer.add_scalar('focal_loss', focal_loss,  iteration)
+                    writer.add_scalar('focal_loss', focal_loss, iteration)
                     writer.add_scalar('box_loss', box_loss, iteration)
                     writer.add_scalar('learning_rate', learning_rate, iteration)
                     del box_loss, focal_loss
@@ -151,7 +156,8 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
 
             if val_annotations and (iteration == iterations or iteration % val_iterations == 0):
                 infer(model, val_path, None, resize, max_size, batch_size, annotations=val_annotations,
-                    mixed_precision=mixed_precision, is_master=is_master, world=world, use_dali=use_dali, is_validation=True, verbose=False)
+                      mixed_precision=mixed_precision, is_master=is_master, world=world, use_dali=use_dali,
+                      is_validation=True, verbose=False)
                 model.train()
 
             if iteration == iterations:
@@ -159,5 +165,3 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
 
     if logdir is not None:
         writer.close()
-
-

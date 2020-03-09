@@ -1,15 +1,15 @@
 # Training
 
-There are two main ways to train a model with `retinanet-examples`:
+There are two main ways to train a model with `retinanet`:
 * Fine-tuning the detection model using a model already trained on a large dataset (like MS-COCO)
-* Fully training the detection model from random initialization using a pre-trained backbone (usually on ImageNet)
+* Fully training the detection model from random initialization using a pre-trained backbone (usually ImageNet)
 
 ## Fine-tuning
 
 Fine-tuning an existing model trained on COCO allows you to use transfer learning to get a accurate model for your own dataset with minimal training.
 When fine-tuning, we re-initialize the last layer of the classification head so the network will re-learn how to map features to classes scores regardless of the number of classes in your own dataset.
 
-You can fine-tune a pre-trained model on your dataset. In the example below we use [Pascal VOC](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/index.html) with [JSON annotations](https://storage.googleapis.com/coco-dataset/external/PASCAL_VOC.zip):
+You can fine-tune a pre-trained model on your dataset. In the example below we take a model trained on COCO, and then fine-tune using [Pascal VOC](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/index.html) with [JSON annotations](https://storage.googleapis.com/coco-dataset/external/PASCAL_VOC.zip):
 ```bash
 retinanet train model_mydataset.pth \
     --fine-tune retinanet_rn50fpn.pth \
@@ -39,13 +39,42 @@ retinanet train retinanet_rn50fpn.pth --backbone ResNet50FPN \
     --val-images /coco/images/val2017/ --val-annotations /coco/annotations/instances_val2017.json
 ```
 
-We use mixed precision training by default. Full precision training can be used by providing the `full-precision` option although it doesn't provide improved accuracy in our experience.
+## Training arguments
 
-If you want to setup your own training schedule, the following options are useful:
-* `iters` is the total number of iterations you want to train the model for (1 iteration with a `batch` size of 16 correspond to going through 16 images of your dataset)
-* `milestone` is a list of number of iteration at which we want to decay the learning rate
-* `lr` represents the initial learning rate and `gamma` is the factor by which we multiply the learning rate at each decay milestone
-* `schedule` is a float value that `iters` and `milestones` will be multiplied with to easily scale the learning schedule
-* `warmup` is the number of initial iterations during which we want to linearly ramp-up the learning rate to avoid early divergence of the loss.
+### Positional arguments
+* The only positional argument is the name of the model. This can be a full path, or relative to the current directory.
+```bash
+retinanet train model.pth
+```
+
+### Other arguments
+The following arguments are available during training:
+
+* `--annotations` (str): Path to COCO style annotations (required).
+* `--images` (str): Path to a directory of images (required).
+* `--lr` (float): Sets the learning rate. Default: 0.01.
+* `--full-precision`: By default we train using mixed precision. Include this argument to instead train in full precision.
+* `--warmup` (int): The number of initial iterations during which we want to linearly ramp-up the learning rate to avoid early divergence of the loss. Default: 1000
+* `--backbone` (str): Specify one of the supported backbones. Default: `ResNet50FPN`
+* `--classes` (int): The number of classes in your dataset. Default: 80
+* `--batch` (int): The size of each training batch. Default: 2 x number of GPUs.
+* `--max-size` (int): The longest edge of your training image will be resized, so that it is always less than or equal to `max-size`. Default: 1333. 
+* `--jitter` (int int): The shortest edge of your training images will be resized to int1 >= shortest edge >= int2, unless the longest edge exceeds `max-size`, in which case the longest edge will be resized to `max-size` and the shortest length will be sized to keep the aspect ratio constant. Default: 640 1024.
+* `--resize` (int): During validation inference, the shortest edge of your training images will be resized to int, unless the longest edge exceeds `max-size`, in which case the longest edge will be resized to `max-size` and the shortest length will be sized to keep the aspect ratio constant. Default: 800.
+* `--iters` (int): The number of iterations to process. An iteration is the processing (forward and backward pass) of one batch. Number of epochs is (`iters` x `batch`) / `len(data)`. Default: 90000.
+* `--milestones` (int int): The learning rate is multiplied by `--gamma` every time it reaches a milestone. Default: 60000 80000.
+* `--gamma` (float): The learning rate is multiplied by `--gamma` every time it reaches a milestone. Default: 0.1.
+* `--override`: Do not continue training from `model.pth`, instead overwrite it.
+* `--val-annotations` (str): Path to COCO style annotations. If supplied, `pycocotools` will be used to give validation mAP.
+* `--val-images` (str): Path to directory of validation images.
+* `--val-iters` (int): Run inference on the validation set every int iterations.
+* `--fine-tune` (str): Fine tune from a model at path str.
+* `--with-dali`: Load data using DALI.
+* `--augment-rotate`: Randomly rotates the training images by 0&deg;, 90&deg;, 180&deg; or 270&deg;.
+* `--augment-brightness` (float): Randomly adjusts brightness of image. The value sets the standard deviation of a Gaussian distribution. The degree of augmentation is selected from this distribution. Default: 0.05
+* `--augment-contrast` (float): Randomly adjusts contrast of image. The value sets the standard deviation of a Gaussian distribution. The degree of augmentation is selected from this distribution. Default: 0.05
+* `--augment-hue` (float): Randomly adjusts hue of image. The value sets the standard deviation of a Gaussian distribution. The degree of augmentation is selected from this distribution. Default: 0.01
+* `--augment-saturation` (float): Randomly adjusts saturation of image. The value sets the standard deviation of a Gaussian distribution. The degree of augmentation is selected from this distribution. Default: 0.05
+* `--regularization-l2` (float): Sets the L2 regularization of the optimizer. Default: 0.0001
 
 You can also monitor the loss and learning rate schedule of the training using TensorBoard bu specifying a `logdir` path.
