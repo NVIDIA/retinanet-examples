@@ -13,8 +13,19 @@ It is optimized for end-to-end GPU processing using:
 * NVIDIA [TensorRT](https://developer.nvidia.com/tensorrt) for high-performance inference
 * NVIDIA [DeepStream](https://developer.nvidia.com/deepstream-sdk) for optimized real-time video streams support
 
-### Change log
-This is version 0.1.1. It introduces rotational and brightness augmentation. See the [CHANGE LOG](CHANGELOG.md) for more information.
+## Performance
+
+The detection pipeline allows the user to select a specific backbone depending on the latency-accuracy trade-off preferred.
+
+Backbone | Resize | mAP @[IoU=0.50:0.95] | Training Time on [DGX1v](https://www.nvidia.com/en-us/data-center/dgx-1/) | TensorRT Inference Latency FP16 on [V100](https://www.nvidia.com/en-us/data-center/tesla-v100/) | TensorRT Inference Latency INT8 on [T4](https://www.nvidia.com/en-us/data-center/tesla-t4/)
+--- | :---: | :---: | :---: | :---: | :---:
+ResNet18FPN | 800 | 0.318 | 5 hrs  | 12 ms/im | 12 ms/im
+ResNet34FPN | 800 | 0.343 | 6 hrs  | 14 ms/im | 14 ms/im
+ResNet50FPN | 800 | 0.358 | 7 hrs  | 16 ms/im | 16 ms/im
+ResNet101FPN | 800 | 0.376 | 10 hrs | 20 ms/im | 20 ms/im
+ResNet152FPN | 800 | 0.393 | 12 hrs | 25 ms/im | 24 ms/im
+
+Training results for [COCO 2017](http://cocodataset.org/#detection-2017) (train/val) after full training schedule with default parameters. Inference results include bounding boxes post-processing for a batch size of 1.
 
 ## Installation
 
@@ -117,20 +128,6 @@ When converting the annotations from your own dataset into JSON, the following e
 ## Disclaimer
 
 This is a research project, not an official NVIDIA product.
-
-## Performance
-
-The detection pipeline allows the user to select a specific backbone depending on the latency-accuracy trade-off preferred.
-
-Backbone | Resize | mAP @[IoU=0.50:0.95] | Training Time on [DGX1v](https://www.nvidia.com/en-us/data-center/dgx-1/) | TensorRT Inference Latency FP16 on [V100](https://www.nvidia.com/en-us/data-center/tesla-v100/) | TensorRT Inference Latency INT8 on [T4](https://www.nvidia.com/en-us/data-center/tesla-t4/)
---- | :---: | :---: | :---: | :---: | :---:
-ResNet18FPN | 800 | 0.318 | 5 hrs  | 12 ms/im | 12 ms/im
-ResNet34FPN | 800 | 0.343 | 6 hrs  | 14 ms/im | 14 ms/im
-ResNet50FPN | 800 | 0.358 | 7 hrs  | 16 ms/im | 16 ms/im
-ResNet101FPN | 800 | 0.376 | 10 hrs | 20 ms/im | 20 ms/im
-ResNet152FPN | 800 | 0.393 | 12 hrs | 25 ms/im | 24 ms/im
-
-Training results for [COCO 2017](http://cocodataset.org/#detection-2017) (train/val) after full training schedule with default parameters. Inference results include bounding boxes post-processing for a batch size of 1.
 
 ## Jetpack compatibility
 
