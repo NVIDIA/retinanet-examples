@@ -68,7 +68,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
 
     if verbose:
         print('    device: {} {}'.format(
-            world, 'cpu' if not torch.cuda.is_available() else 'gpu' if world == 1 else 'gpus'))
+            world, 'cpu' if not torch.cuda.is_available() else 'GPU' if world == 1 else 'GPUs'))
         print('     batch: {}, precision: {}'.format(batch_size, 'mixed' if mixed_precision else 'full'))
         print(' BBOX type:', 'rotated' if rotated_bbox else 'axis aligned')
         print('Training model for {} iterations...'.format(iterations))
