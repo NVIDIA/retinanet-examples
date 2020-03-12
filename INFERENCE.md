@@ -51,29 +51,26 @@ To learn more about TensorRT optimization, refer here: https://developer.nvidia.
 The workflow for exporting a trained PyTorch detection model to TensorRT is as simple as:
 
 ```bash
-odtk export model.pth model_fp16.plan --batch 1 --size 1280
+odtk export model.pth model_fp16.plan --size 1280
 ```
 This will create a TensorRT engine optimized for batch size 1, using an input size of 1280x1280. By default, the engine will be created to run in FP16 precision.
 
 Export your model to use full precision using a non-square input size:
 ```bash
-odtk export model.pth model_fp32.plan --full-precision --batch 1 --size 800 1280
+odtk export model.pth model_fp32.plan --full-precision --size 800 1280
 ```
 
 In order to use INT8 precision with TensorRT, you need to provide calibration images (images that are representative of what will be seen at runtime) that will be used to rescale the network.
 ```bash
-odtk export model.pth model_int8.plan --batch 2 --int8 --calibration-images /data/val/ --calibration-batches 10 --calibration-table model_calibration_table
+odtk export model.pth model_int8.plan --int8 --calibration-images /data/val/ --calibration-batches 10 --calibration-table model_calibration_table
 ```
 
 This will randomly select 20 images from `/data/val/` to calibrate the network for INT8 precision. The results from calibration will be saved to `model_calibration_table` that can be used to create subsequent INT8 engines for this model without needed to recalibrate. 
 
 Build an INT8 engine for a previously calibrated model:
 ```bash
-odtk export model.pth model_int8.plan --batch 2 --int8 --calibration-table model_calibration_table
+odtk export model.pth model_int8.plan --int8 --calibration-table model_calibration_table
 ```
-
-Note: for older versions of TensorRT (prior to TensorRT 5.1 / 19.03 containers) the ONNX opset version should be specified (using `--opset 8` for instance).
-
 
 ## Deployment with TensorRT on NVIDIA Jetson AGX Xavier
 

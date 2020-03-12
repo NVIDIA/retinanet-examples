@@ -1,3 +1,25 @@
+#
+# Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+#
+
 #!/usr/bin/env python3
 import sys
 import os
@@ -96,7 +118,6 @@ def parse(args):
                                default=2)
     parser_export.add_argument('--full-precision', help='export in full instead of half precision', action='store_true')
     parser_export.add_argument('--int8', help='calibrate model and export in int8 precision', action='store_true')
-    parser_export.add_argument('--opset', metavar='version', type=int, help='ONNX opset version')
     parser_export.add_argument('--calibration-batches', metavar='size', type=int,
                                help='number of batches to use for int8 calibration', default=10)
     parser_export.add_argument('--calibration-images', metavar='path', type=str,
