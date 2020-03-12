@@ -6,22 +6,41 @@ import torch
 from apex import amp
 from apex.parallel import DistributedDataParallel as DDP
 from pycocotools.cocoeval import COCOeval
+import numpy as np
 
 from .data import DataIterator
 from .dali import DaliDataIterator
-from .model import Model
+from .model import Model, ModelRotated
 from .utils import Profiler
+
+
+def rotate_box(bbox):
+    xmin, ymin, width, height, theta = bbox
+
+    xy1 = xmin, ymin
+    xy2 = xmin, ymin + height - 1
+    xy3 = xmin + width - 1, ymin + height - 1
+    xy4 = xmin + width - 1, ymin
+
+    cents = np.array([xmin + (width - 1) / 2, ymin + (height - 1) / 2])
+
+    corners = np.stack([xy1, xy2, xy3, xy4])
+
+    u = np.stack([np.cos(theta), -np.sin(theta)])
+    l = np.stack([np.sin(theta), np.cos(theta)])
+    R = np.vstack([u, l])
+
+    corners = np.matmul(R, (corners - cents).transpose(1, 0)).transpose(1, 0) + cents
+
+    return corners.reshape(-1).tolist()
 
 
 def infer(model, path, detections_file, resize, max_size, batch_size, mixed_precision=True, is_master=True, world=0,
           annotations=None, use_dali=True, is_validation=False, verbose=True):
     'Run inference on images from path'
 
-    backend = 'pytorch' if isinstance(model, Model) or isinstance(model, DDP) else 'tensorrt'
-
-    # Set batch_size = 1 batch/GPU for EXPLICIT_BATCH compatibility in TRT
-    if backend is 'tensorrt':
-        batch_size = world
+    backend = 'pytorch' if isinstance(model, Model) or isinstance(model, DDP) or isinstance(model,
+                                                                                            ModelRotated) else 'tensorrt'
 
     stride = model.module.stride if isinstance(model, DDP) else model.stride
 
@@ -109,18 +128,25 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
 
             keep = (scores > 0).nonzero()
             scores = scores[keep].view(-1)
-            boxes = boxes[keep, :].view(-1, 4) / ratios
+            boxes = boxes[keep, :].view(-1, 6)
+            boxes[:, :4] /= ratios
             classes = classes[keep].view(-1).int()
 
             for score, box, cat in zip(scores, boxes, classes):
-                x1, y1, x2, y2 = box.data.tolist()
+                x1, y1, x2, y2, sin, cos = box.data.tolist()
+                theta = np.arctan2(sin, cos)
+                w = x2 - x1 + 1
+                h = y2 - y1 + 1
+                seg = rotate_box([x1, y1, w, h, theta])
+
                 cat = cat.item()
                 if 'annotations' in data_iterator.coco.dataset:
                     cat = data_iterator.coco.getCatIds()[cat]
                 detections.append({
                     'image_id': image_id,
                     'score': score.item(),
-                    'bbox': [x1, y1, x2 - x1 + 1, y2 - y1 + 1],
+                    'bbox': [x1, y1, x2 - x1 + 1, y2 - y1 + 1, theta],
+                    'segmentation': [seg],
                     'category_id': cat
                 })
 
@@ -134,12 +160,13 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
             if detections_file:
                 json.dump(detections, open(detections_file, 'w'), indent=4)
 
-            # Evaluate model on dataset
+            # Evaluate model on dataset #TODO need to perform rotated comparison
             if 'annotations' in data_iterator.coco.dataset:
                 if verbose: print('Evaluating model...')
                 with redirect_stdout(None):
                     coco_pred = data_iterator.coco.loadRes(detections['annotations'])
-                    coco_eval = COCOeval(data_iterator.coco, coco_pred, 'bbox')
+                    # coco_eval = COCOeval(data_iterator.coco, coco_pred, 'bbox')
+                    coco_eval = COCOeval(data_iterator.coco, coco_pred, 'segm')
                     coco_eval.evaluate()
                     coco_eval.accumulate()
                 coco_eval.summarize()

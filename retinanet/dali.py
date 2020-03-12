@@ -1,10 +1,7 @@
-import os
 from contextlib import redirect_stdout
 from math import ceil
 import ctypes
-import numpy as np
 import torch
-import numpy as np
 from nvidia.dali import pipeline, ops, types
 from pycocotools.coco import COCO
 

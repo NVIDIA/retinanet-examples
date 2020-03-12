@@ -1,4 +1,33 @@
-# NVIDIA PyTorch RetinaNet change log
+# NVIDIA ODTK change log
+
+## Version 0.2.0 -- 2020-03-13
+
+Version 0.2.0 introduces rotated detections.
+
+### Added
+* `train arguments`:
+  * `--rotated-bbox`: Trains a model is predict rotated bounding boxes `[x, y, w, h, theta]` instead of axis aligned boxes `[x, y, w, h]`.
+* `infer arguments`:
+  * `--rotated-bbox`: Infer a rotated model.
+
+### Changed
+The project has reverted to the name **Object Detection Toolkit** (ODTK), to better reflect the multi-network nature of the repo.
+* `retinanet` has been replaced with `odtk`. All subcommands remain the same. 
+
+### Limitations
+* Models trained using the `--rotated-bbox` flag cannot be exported to ONNX or a TensorRT Engine.
+* PyTorch raises two warnings which can be ignored:
+
+Warning 1: NCCL watchdog
+```
+[E ProcessGroupNCCL.cpp:284] NCCL watchdog thread terminated
+```
+
+Warning 2: Save state warning
+```
+/opt/conda/lib/python3.6/site-packages/torch/optim/lr_scheduler.py:201: UserWarning: Please also save or load the state of the optimzer when saving or loading the scheduler.
+  warnings.warn(SAVE_STATE_WARNING, UserWarning)
+```
 
 ## Version 0.1.1 -- 2020-03-06
 

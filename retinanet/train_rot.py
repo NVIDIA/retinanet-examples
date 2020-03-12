@@ -1,16 +1,16 @@
 from statistics import mean
 from math import isfinite
 import torch
-from torch.optim import SGD, AdamW
+from torch.optim import SGD, Adam
 from torch.optim.lr_scheduler import LambdaLR
 from apex import amp, optimizers
 from apex.parallel import DistributedDataParallel
 from .backbones.layers import convert_fixedbn_model
 
-from .data import DataIterator
+from .data import RotatedDataIterator
 from .dali import DaliDataIterator
 from .utils import ignore_sigint, post_metrics, Profiler
-from .infer import infer
+from .infer_rot import infer
 
 
 def train(model, state, path, annotations, val_path, val_annotations, resize, max_size, jitter, batch_size, iterations,
@@ -29,6 +29,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
 
     # Setup optimizer and schedule
     optimizer = SGD(model.parameters(), lr=lr, weight_decay=regularization_l2, momentum=0.9)
+    # optimizer = Adam(model.parameters(), lr=lr)
 
     model, optimizer = amp.initialize(model, optimizer,
                                       opt_level='O2' if mixed_precision else 'O0',
@@ -52,10 +53,10 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
 
     # Prepare dataset
     if verbose: print('Preparing dataset...')
-    data_iterator = (DaliDataIterator if use_dali else DataIterator)(
+    data_iterator = (DaliDataIterator if use_dali else RotatedDataIterator)(
         path, jitter, max_size, batch_size, stride,
         world, annotations, training=True, rotate_augment=rotate_augment, augment_brightness=augment_brightness,
-          augment_contrast=augment_contrast, augment_hue=augment_hue, augment_saturation=augment_saturation)
+        augment_contrast=augment_contrast, augment_hue=augment_hue, augment_saturation=augment_saturation)
     if verbose: print(data_iterator)
 
     if verbose:

@@ -20,6 +20,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <algorithm>
+#include <iostream>
+#include <stdexcept>
+#include <cstdint>
+#include <cmath>
+
 #include <torch/extension.h>
 #include <ATen/cuda/CUDAContext.h>
 
@@ -28,11 +34,37 @@
 
 #include "engine.h"
 #include "cuda/decode.h"
+#include "cuda/decode_rotate.h"
 #include "cuda/nms.h"
+#include "cuda/iou.h"
+
 
 #define CHECK_CUDA(x) AT_ASSERTM(x.type().is_cuda(), #x " must be a CUDA tensor")
 #define CHECK_CONTIGUOUS(x) AT_ASSERTM(x.is_contiguous(), #x " must be contiguous")
 #define CHECK_INPUT(x) CHECK_CUDA(x); CHECK_CONTIGUOUS(x)
+
+vector<at::Tensor> iou(at::Tensor boxes, at::Tensor anchors) {
+
+    CHECK_INPUT(boxes);
+    CHECK_INPUT(anchors);
+
+    int num_boxes = boxes.numel() / 8;
+    int num_anchors = anchors.numel() / 8;
+    auto options = boxes.options();
+
+    auto iou_vals = at::zeros({num_boxes*num_anchors}, options);
+    auto inter_vals = at::zeros({num_boxes*num_anchors}, options);
+
+    // Calculate Polygon IOU
+    vector<void *> inputs = {boxes.data_ptr(), anchors.data_ptr()};
+    vector<void *> outputs = {iou_vals.data_ptr(), inter_vals.data_ptr()};
+
+    retinanet::cuda::iou( inputs.data(), outputs.data(), num_boxes, num_anchors, at::cuda::getCurrentCUDAStream() );
+
+    auto shape = std::vector<int64_t>{num_anchors, num_boxes};
+
+    return {iou_vals.reshape(shape), inter_vals.reshape(shape)};
+}
 
 vector<at::Tensor> decode(at::Tensor cls_head, at::Tensor box_head,
         vector<float> &anchors, int scale, float score_thresh, int top_n) {
@@ -67,6 +99,40 @@ vector<at::Tensor> decode(at::Tensor cls_head, at::Tensor box_head,
     return {scores, boxes, classes};
 }
 
+vector<at::Tensor> decode_rotate(at::Tensor cls_head, at::Tensor box_head,
+        vector<float> &anchors, int scale, float score_thresh, int top_n) {
+
+    CHECK_INPUT(cls_head);
+    CHECK_INPUT(box_head);
+
+    int batch = cls_head.size(0);
+    int num_anchors = anchors.size() / 4;
+    int num_classes = cls_head.size(1) / num_anchors;
+    int height = cls_head.size(2);
+    int width = cls_head.size(3);
+    auto options = cls_head.options();
+
+
+    auto scores = at::zeros({batch, top_n}, options);
+    auto boxes = at::zeros({batch, top_n, 6}, options);
+    auto classes = at::zeros({batch, top_n}, options);
+
+
+    // Create scratch buffer
+    int size = retinanet::cuda::decode_rotate(batch, nullptr, nullptr, height, width, scale,
+        num_anchors, num_classes, anchors, score_thresh, top_n, nullptr, 0, nullptr);
+    auto scratch = at::zeros({size}, options.dtype(torch::kUInt8));
+
+    // Decode boxes
+    vector<void *> inputs = {cls_head.data_ptr(), box_head.data_ptr()};
+    vector<void *> outputs = {scores.data_ptr(), boxes.data_ptr(), classes.data_ptr()};
+    retinanet::cuda::decode_rotate(batch, inputs.data(), outputs.data(), height, width, scale,
+        num_anchors, num_classes, anchors, score_thresh, top_n,
+        scratch.data_ptr(), size, at::cuda::getCurrentCUDAStream());
+
+    return {scores, boxes, classes};
+}
+
 vector<at::Tensor> nms(at::Tensor scores, at::Tensor boxes, at::Tensor classes,
         float nms_thresh, int detections_per_im) {
 
@@ -83,7 +149,7 @@ vector<at::Tensor> nms(at::Tensor scores, at::Tensor boxes, at::Tensor classes,
     auto nms_classes = at::zeros({batch, detections_per_im}, classes.options());
 
     // Create scratch buffer
-    int size = retinanet::cuda::nms(batch, nullptr, nullptr, count, 
+    int size = retinanet::cuda::nms(batch, nullptr, nullptr, count,
         detections_per_im, nms_thresh, nullptr, 0, nullptr);
     auto scratch = at::zeros({size}, options.dtype(torch::kUInt8));
 
@@ -99,7 +165,7 @@ vector<at::Tensor> nms(at::Tensor scores, at::Tensor boxes, at::Tensor classes,
 
 vector<at::Tensor> infer(retinanet::Engine &engine, at::Tensor data) {
     CHECK_INPUT(data);
-    
+
     int batch = data.size(0);
     auto input_size = engine.getInputSize();
     data = at::constant_pad_nd(data, {0, input_size[1] - data.size(3), 0, input_size[0] - data.size(2)});
@@ -130,9 +196,11 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
         .def_static("load", [](const string &path) {
             return new retinanet::Engine(path);
         })
-        .def("__call__", [](retinanet::Engine &engine, at::Tensor data) { 
+        .def("__call__", [](retinanet::Engine &engine, at::Tensor data) {
             return infer(engine, data);
         });
     m.def("decode", &decode);
+    m.def("decode_rotate", &decode_rotate);
     m.def("nms", &nms);
+    m.def("iou", &iou);
 }

@@ -2,13 +2,13 @@ from setuptools import setup
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
 setup(
-    name='retinanet',
-    version='0.1.1',
+    name='odtk',
+    version='0.2.0',
     description='Fast and accurate single shot object detector',
     author = 'NVIDIA Corporation',
     packages=['retinanet', 'retinanet.backbones'],
     ext_modules=[CUDAExtension('retinanet._C',
-        ['csrc/extensions.cpp', 'csrc/engine.cpp', 'csrc/cuda/decode.cu', 'csrc/cuda/nms.cu'],
+        ['csrc/extensions.cpp', 'csrc/engine.cpp', 'csrc/cuda/decode.cu', 'csrc/cuda/decode_rotate.cu', 'csrc/cuda/nms.cu', 'csrc/cuda/iou.cu'],
         extra_compile_args={
             'cxx': ['-std=c++14', '-O2', '-Wall'],
             'nvcc': [
@@ -29,5 +29,5 @@ setup(
         'pillow',
         'requests',
     ],
-    entry_points = {'console_scripts': ['retinanet=retinanet.main:main']}
+    entry_points = {'console_scripts': ['odtk=retinanet.main:main']}
 )
