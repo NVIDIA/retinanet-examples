@@ -96,7 +96,6 @@ def parse(args):
                                default=2)
     parser_export.add_argument('--full-precision', help='export in full instead of half precision', action='store_true')
     parser_export.add_argument('--int8', help='calibrate model and export in int8 precision', action='store_true')
-    parser_export.add_argument('--opset', metavar='version', type=int, help='ONNX opset version')
     parser_export.add_argument('--calibration-batches', metavar='size', type=int,
                                help='number of batches to use for int8 calibration', default=10)
     parser_export.add_argument('--calibration-images', metavar='path', type=str,
