@@ -7,7 +7,7 @@ from apex import amp, optimizers
 from apex.parallel import DistributedDataParallel
 from .backbones.layers import convert_fixedbn_model
 
-from .data import DataIterator
+from .data import DataIterator, RotatedDataIterator
 from .dali import DaliDataIterator
 from .utils import ignore_sigint, post_metrics, Profiler
 from .infer import infer
@@ -16,7 +16,7 @@ from .infer import infer
 def train(model, state, path, annotations, val_path, val_annotations, resize, max_size, jitter, batch_size, iterations,
           val_iterations, mixed_precision, lr, warmup, milestones, gamma, is_master=True, world=1, use_dali=True,
           verbose=True, metrics_url=None, logdir=None, rotate_augment=False, augment_brightness=0.0,
-          augment_contrast=0.0, augment_hue=0.0, augment_saturation=0.0, regularization_l2=0.0001):
+          augment_contrast=0.0, augment_hue=0.0, augment_saturation=0.0, regularization_l2=0.0001, rotated_bbox=False):
     'Train the model on the given dataset'
 
     # Prepare model
@@ -52,16 +52,25 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
 
     # Prepare dataset
     if verbose: print('Preparing dataset...')
-    data_iterator = (DaliDataIterator if use_dali else DataIterator)(
-        path, jitter, max_size, batch_size, stride,
-        world, annotations, training=True, rotate_augment=rotate_augment, augment_brightness=augment_brightness,
-          augment_contrast=augment_contrast, augment_hue=augment_hue, augment_saturation=augment_saturation)
+    if rotated_bbox:
+        if use_dali: raise NotImplementedError("This repo does not currently support DALI for rotated bbox detections.")
+        data_iterator = RotatedDataIterator(path, jitter, max_size, batch_size, stride,
+                                            world, annotations, training=True, rotate_augment=rotate_augment,
+                                            augment_brightness=augment_brightness,
+                                            augment_contrast=augment_contrast, augment_hue=augment_hue,
+                                            augment_saturation=augment_saturation)
+    else:
+        data_iterator = (DaliDataIterator if use_dali else DataIterator)(
+            path, jitter, max_size, batch_size, stride,
+            world, annotations, training=True, rotate_augment=rotate_augment, augment_brightness=augment_brightness,
+            augment_contrast=augment_contrast, augment_hue=augment_hue, augment_saturation=augment_saturation)
     if verbose: print(data_iterator)
 
     if verbose:
         print('    device: {} {}'.format(
             world, 'cpu' if not torch.cuda.is_available() else 'gpu' if world == 1 else 'gpus'))
-        print('    batch: {}, precision: {}'.format(batch_size, 'mixed' if mixed_precision else 'full'))
+        print('     batch: {}, precision: {}'.format(batch_size, 'mixed' if mixed_precision else 'full'))
+        print(' BBOX type:', 'rotated' if rotated_bbox else 'axis aligned')
         print('Training model for {} iterations...'.format(iterations))
 
     # Create TensorBoard writer
@@ -156,7 +165,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
             if val_annotations and (iteration == iterations or iteration % val_iterations == 0):
                 infer(model, val_path, None, resize, max_size, batch_size, annotations=val_annotations,
                       mixed_precision=mixed_precision, is_master=is_master, world=world, use_dali=use_dali,
-                      is_validation=True, verbose=False)
+                      is_validation=True, verbose=False, rotated_bbox=rotated_bbox)
                 model.train()
 
             if iteration == iterations:

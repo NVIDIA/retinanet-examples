@@ -6,18 +6,20 @@ import torch
 from apex import amp
 from apex.parallel import DistributedDataParallel as DDP
 from pycocotools.cocoeval import COCOeval
+import numpy as np
 
-from .data import DataIterator
+from .data import DataIterator, RotatedDataIterator
 from .dali import DaliDataIterator
-from .model import Model
-from .utils import Profiler
+from .model import Model, ModelRotated
+from .utils import Profiler, rotate_box
 
 
 def infer(model, path, detections_file, resize, max_size, batch_size, mixed_precision=True, is_master=True, world=0,
-          annotations=None, use_dali=True, is_validation=False, verbose=True):
+          annotations=None, use_dali=True, is_validation=False, verbose=True, rotated_bbox=False):
     'Run inference on images from path'
 
-    backend = 'pytorch' if isinstance(model, Model) or isinstance(model, DDP) else 'tensorrt'
+    backend = 'pytorch' if isinstance(model, Model) or isinstance(model, DDP) or isinstance(model,
+                                                                                            ModelRotated) else 'tensorrt'
 
     # Set batch_size = 1 batch/GPU for EXPLICIT_BATCH compatibility in TRT
     if backend is 'tensorrt':
@@ -36,9 +38,14 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
 
     # Prepare dataset
     if verbose: print('Preparing dataset...')
-    data_iterator = (DaliDataIterator if use_dali else DataIterator)(
-        path, resize, max_size, batch_size, stride,
-        world, annotations, training=False)
+    if rotated_bbox:
+        if use_dali: raise NotImplementedError("This repo does not currently support DALI for rotated bbox detections.")
+        data_iterator = RotatedDataIterator(path, resize, max_size, batch_size, stride,
+                                            world, annotations, training=False)
+    else:
+        data_iterator = (DaliDataIterator if use_dali else DataIterator)(
+            path, resize, max_size, batch_size, stride,
+            world, annotations, training=False)
     if verbose: print(data_iterator)
 
     # Prepare model
@@ -60,6 +67,7 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
             world, 'cpu' if not torch.cuda.is_available() else 'gpu' if world == 1 else 'gpus'))
         print('     batch: {}, precision: {}'.format(batch_size,
                                                      'unknown' if backend is 'tensorrt' else 'mixed' if mixed_precision else 'full'))
+        print(' BBOX type:', 'rotated' if rotated_bbox else 'axis aligned')
         print('Running inference...')
 
     results = []
@@ -109,20 +117,36 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
 
             keep = (scores > 0).nonzero()
             scores = scores[keep].view(-1)
-            boxes = boxes[keep, :].view(-1, 4) / ratios
+            if rotated_bbox:
+                boxes = boxes[keep, :].view(-1, 6)
+                boxes[:, :4] /= ratios
+            else:
+                boxes = boxes[keep, :].view(-1, 4) / ratios
             classes = classes[keep].view(-1).int()
 
             for score, box, cat in zip(scores, boxes, classes):
-                x1, y1, x2, y2 = box.data.tolist()
+                if rotated_bbox:
+                    x1, y1, x2, y2, sin, cos = box.data.tolist()
+                    theta = np.arctan2(sin, cos)
+                    w = x2 - x1 + 1
+                    h = y2 - y1 + 1
+                    seg = rotate_box([x1, y1, w, h, theta])
+                else:
+                    x1, y1, x2, y2 = box.data.tolist()
                 cat = cat.item()
                 if 'annotations' in data_iterator.coco.dataset:
                     cat = data_iterator.coco.getCatIds()[cat]
-                detections.append({
+                this_det = {
                     'image_id': image_id,
                     'score': score.item(),
-                    'bbox': [x1, y1, x2 - x1 + 1, y2 - y1 + 1],
-                    'category_id': cat
-                })
+                    'category_id': cat}
+                if rotated_bbox:
+                    this_det['bbox'] = [x1, y1, x2 - x1 + 1, y2 - y1 + 1, theta]
+                    this_det['segmentation'] = [seg]
+                else:
+                    this_det['bbox'] = [x1, y1, x2 - x1 + 1, y2 - y1 + 1]
+
+                detections.append(this_det)
 
         if detections:
             # Save detections
@@ -139,7 +163,10 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
                 if verbose: print('Evaluating model...')
                 with redirect_stdout(None):
                     coco_pred = data_iterator.coco.loadRes(detections['annotations'])
-                    coco_eval = COCOeval(data_iterator.coco, coco_pred, 'bbox')
+                    if rotated_bbox:
+                        coco_eval = COCOeval(data_iterator.coco, coco_pred, 'segm')
+                    else:
+                        coco_eval = COCOeval(data_iterator.coco, coco_pred, 'bbox')
                     coco_eval.evaluate()
                     coco_eval.accumulate()
                 coco_eval.summarize()

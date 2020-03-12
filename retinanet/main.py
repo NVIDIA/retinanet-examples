@@ -7,7 +7,7 @@ import torch.cuda
 import torch.distributed
 import torch.multiprocessing
 
-from retinanet import infer, infer_rot, train, train_rot, utils
+from retinanet import infer, train, utils
 from retinanet.model import Model, ModelRotated
 from retinanet._C import Engine
 
@@ -59,13 +59,13 @@ def parse(args):
     parser_train.add_argument('--with-dali', help='use dali for data loading', action='store_true')
     parser_train.add_argument('--augment-rotate', help='use four-fold rotational augmentation', action='store_true')
     parser_train.add_argument('--augment-brightness', metavar='value', type=float,
-                              help='adjust the brightness of the image.', default=0.01)
+                              help='adjust the brightness of the image.', default=0.002)
     parser_train.add_argument('--augment-contrast', metavar='value', type=float,
-                              help='adjust the contrast of the image.', default=0.01)
+                              help='adjust the contrast of the image.', default=0.002)
     parser_train.add_argument('--augment-hue', metavar='value', type=float,
-                              help='adjust the hue of the image.', default=0.002)
+                              help='adjust the hue of the image.', default=0.0002)
     parser_train.add_argument('--augment-saturation', metavar='value', type=float,
-                              help='adjust the saturation of the image.', default=0.01)
+                              help='adjust the saturation of the image.', default=0.002)
     parser_train.add_argument('--regularization-l2', metavar='value', type=float, help='L2 regularization for optim',
                               default=0.0001)
     parser_train.add_argument('--rotated-bbox', help='detect rotated bounding boxes [x, y, w, h, theta]',
@@ -164,7 +164,7 @@ def worker(rank, args, world, model, state):
         if args.batch % world != 0:
             raise RuntimeError('Batch size should be a multiple of the number of GPUs')
 
-    if args.command == 'train' and not args.rotated_bbox:
+    if args.command == 'train':
         train.train(model, state, args.images, args.annotations,
                     args.val_images or args.images, args.val_annotations, args.resize, args.max_size, args.jitter,
                     args.batch, int(args.iters * args.schedule), args.val_iters, not args.full_precision, args.lr,
@@ -174,41 +174,22 @@ def worker(rank, args, world, model, state):
                     rotate_augment=args.augment_rotate,
                     augment_brightness=args.augment_brightness, augment_contrast=args.augment_contrast,
                     augment_hue=args.augment_hue, augment_saturation=args.augment_saturation,
-                    regularization_l2=args.regularization_l2)
+                    regularization_l2=args.regularization_l2, rotated_bbox=args.rotated_bbox)
 
-    elif args.command == 'train' and args.rotated_bbox:
-        train_rot.train(model, state, args.images, args.annotations,
-                        args.val_images or args.images, args.val_annotations, args.resize, args.max_size, args.jitter,
-                        args.batch, int(args.iters * args.schedule), args.val_iters, not args.full_precision, args.lr,
-                        args.warmup, [int(m * args.schedule) for m in args.milestones], args.gamma,
-                        is_master=(rank == 0), world=world, use_dali=args.with_dali,
-                        metrics_url=args.post_metrics, logdir=args.logdir, verbose=(rank == 0),
-                        rotate_augment=args.augment_rotate,
-                        augment_brightness=args.augment_brightness, augment_contrast=args.augment_contrast,
-                        augment_hue=args.augment_hue, augment_saturation=args.augment_saturation,
-                        regularization_l2=args.regularization_l2)
-
-
-    elif args.command == 'infer' and not args.rotated_bbox:
+    elif args.command == 'infer':
         if model is None:
             if rank == 0: print('Loading CUDA engine from {}...'.format(os.path.basename(args.model)))
             model = Engine.load(args.model)
 
         infer.infer(model, args.images, args.output, args.resize, args.max_size, args.batch,
                     annotations=args.annotations, mixed_precision=not args.full_precision,
-                    is_master=(rank == 0), world=world, use_dali=args.with_dali, verbose=(rank == 0))
+                    is_master=(rank == 0), world=world, use_dali=args.with_dali, verbose=(rank == 0),
+                    rotated_bbox=args.rotated_bbox)
 
-    elif args.command == 'infer' and args.rotated_bbox:
-        if model is None:
-            if rank == 0: print('Loading CUDA engine from {}...'.format(os.path.basename(args.model)))
-            model = Engine.load(args.model)
-
-        infer_rot.infer(model, args.images, args.output, args.resize, args.max_size, args.batch,
-                        annotations=args.annotations, mixed_precision=not args.full_precision,
-                        is_master=(rank == 0), world=world, use_dali=args.with_dali, verbose=(rank == 0))
-
-
-    elif args.command == 'export' and not args.rotated_bbox:
+    elif args.command == 'export':
+        if args.rotated_bbox:
+            raise NotImplementedError(
+                "This rep is currently unable to support exporting rotated detections to ONNX or TensorRT engines.")
         onnx_only = args.export.split('.')[-1] == 'onnx'
         input_size = args.size * 2 if len(args.size) == 1 else args.size
 
@@ -242,10 +223,6 @@ def worker(rank, args, world, model, state):
                 out.write(exported)
         else:
             exported.save(args.export)
-
-    elif args.command == 'export' and args.rotated_bbox:
-        raise NotImplementedError(
-            "This rep is currently unable to support exporting rotated detections to ONNX or TensorRT engines.")
 
 
 def main(args=None):

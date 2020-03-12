@@ -71,10 +71,10 @@ The following arguments are available during training:
 * `--fine-tune` (str): Fine tune from a model at path str.
 * `--with-dali`: Load data using DALI.
 * `--augment-rotate`: Randomly rotates the training images by 0&deg;, 90&deg;, 180&deg; or 270&deg;.
-* `--augment-brightness` (float): Randomly adjusts brightness of image. The value sets the standard deviation of a Gaussian distribution. The degree of augmentation is selected from this distribution. Default: 0.01
-* `--augment-contrast` (float): Randomly adjusts contrast of image. The value sets the standard deviation of a Gaussian distribution. The degree of augmentation is selected from this distribution. Default: 0.01
-* `--augment-hue` (float): Randomly adjusts hue of image. The value sets the standard deviation of a Gaussian distribution. The degree of augmentation is selected from this distribution. Default: 0.002
-* `--augment-saturation` (float): Randomly adjusts saturation of image. The value sets the standard deviation of a Gaussian distribution. The degree of augmentation is selected from this distribution. Default: 0.01
+* `--augment-brightness` (float): Randomly adjusts brightness of image. The value sets the standard deviation of a Gaussian distribution. The degree of augmentation is selected from this distribution. Default: 0.002
+* `--augment-contrast` (float): Randomly adjusts contrast of image. The value sets the standard deviation of a Gaussian distribution. The degree of augmentation is selected from this distribution. Default: 0.002
+* `--augment-hue` (float): Randomly adjusts hue of image. The value sets the standard deviation of a Gaussian distribution. The degree of augmentation is selected from this distribution. Default: 0.0002
+* `--augment-saturation` (float): Randomly adjusts saturation of image. The value sets the standard deviation of a Gaussian distribution. The degree of augmentation is selected from this distribution. Default: 0.002
 * `--regularization-l2` (float): Sets the L2 regularization of the optimizer. Default: 0.0001
 
 You can also monitor the loss and learning rate schedule of the training using TensorBoard bu specifying a `logdir` path.
