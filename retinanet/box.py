@@ -84,10 +84,10 @@ def generate_anchors(stride, ratio_vals, scales_vals):
     ratios = torch.FloatTensor(ratio_vals * len(scales_vals))
 
     wh = torch.FloatTensor([stride]).repeat(len(ratios), 2)
-    ws = torch.round(torch.sqrt(wh[:, 0] * wh[:, 1] / ratios))
-    dwh = torch.stack([ws, torch.round(ws * ratios)], dim=1)
+    ws = torch.sqrt(wh[:, 0] * wh[:, 1] / ratios)
+    dwh = torch.stack([ws, ws * ratios], dim=1)
     xy1 = 0.5 * (wh - dwh * scales)
-    xy2 = 0.5 * (wh + dwh * scales) - 1
+    xy2 = 0.5 * (wh + dwh * scales)
     return torch.cat([xy1, xy2], dim=1)
 
 
@@ -99,39 +99,29 @@ def generate_anchors_rotated(stride, ratio_vals, scales_vals, angles_vals, devic
     ratios = torch.FloatTensor(ratio_vals * len(scales_vals)).to(device)
 
     wh = torch.FloatTensor([stride]).to(device).repeat(len(ratios), 2)
-    ws = torch.round(torch.sqrt(wh[:, 0] * wh[:, 1] / ratios))
-    dwh = torch.stack([ws, torch.round(ws * ratios)], dim=1)
+    ws = torch.sqrt(wh[:, 0] * wh[:, 1] / ratios)
+    dwh = torch.stack([ws, ws * ratios], dim=1)
 
-    xy0 = 0.5 * (wh - dwh * scales)
-    xy2 = 0.5 * (wh + dwh * scales) - 1
-    xy1 = xy0 + (xy2 - xy0) * torch.FloatTensor([0, 1]).to(device)
-    xy3 = xy0 + (xy2 - xy0) * torch.FloatTensor([1, 0]).to(device)
+    xy1 = 0.5 * (wh - dwh * scales)
+    xy3 = 0.5 * (wh + dwh * scales)
+    xy2 = xy1 + (xy3 - xy1) * torch.FloatTensor([0, 1]).to(device)
+    xy4 = xy1 + (xy3 - xy1) * torch.FloatTensor([1, 0]).to(device)
 
+    anchors = torch.stack([xy1, xy2, xy3, xy4], 1).view(-1, 4, 2)
     angles = torch.FloatTensor(angles_vals).to(device)
-    theta = angles.repeat(xy0.size(0), 1)
-    theta = theta.transpose(0, 1).contiguous().view(-1, 1)
+    anchors = anchors.repeat(angles.size(0), 1, 1)
+    theta = angles.repeat(xy1.size(0), 1).transpose(0, 1).contiguous().view(-1)
 
-    xmin_ymin = xy0.repeat(int(theta.size(0) / xy0.size(0)), 1)
-    xmax_ymax = xy2.repeat(int(theta.size(0) / xy2.size(0)), 1)
-    widths_heights = dwh * scales
-    widths_heights = widths_heights.repeat(int(theta.size(0) / widths_heights.size(0)), 1)
+    xmin_ymin = xy1.repeat(int(theta.size(0) / xy1.size(0)), 1)
+    xmax_ymax = xy3.repeat(int(theta.size(0) / xy3.size(0)), 1)
 
-    u = torch.stack([torch.cos(angles), torch.sin(angles)], dim=1)
-    l = torch.stack([-torch.sin(angles), torch.cos(angles)], dim=1)
-    R = torch.stack([u, l], dim=1)
+    u = torch.stack([torch.cos(theta), -torch.sin(theta)], dim=1)
+    l = torch.stack([torch.sin(theta), torch.cos(theta)], dim=1)
+    R = torch.stack([u, l], dim=1).to(device)
 
-    xy0R = torch.matmul(R, xy0.transpose(1, 0) - stride / 2 + 0.5) + stride / 2 - 0.5
-    xy1R = torch.matmul(R, xy1.transpose(1, 0) - stride / 2 + 0.5) + stride / 2 - 0.5
-    xy2R = torch.matmul(R, xy2.transpose(1, 0) - stride / 2 + 0.5) + stride / 2 - 0.5
-    xy3R = torch.matmul(R, xy3.transpose(1, 0) - stride / 2 + 0.5) + stride / 2 - 0.5
-
-    xy0R = xy0R.permute(0, 2, 1).contiguous().view(-1, 2)
-    xy1R = xy1R.permute(0, 2, 1).contiguous().view(-1, 2)
-    xy2R = xy2R.permute(0, 2, 1).contiguous().view(-1, 2)
-    xy3R = xy3R.permute(0, 2, 1).contiguous().view(-1, 2)
-
+    cents = torch.FloatTensor([stride / 2]).to(device)
     anchors_axis = torch.cat([xmin_ymin, xmax_ymax], dim=1)
-    anchors_rotated = order_points(torch.stack([xy0R, xy1R, xy2R, xy3R], dim=1)).view(-1, 8)
+    anchors_rotated = order_points(torch.matmul(anchors - cents, R) + cents).view(-1, 8)
 
     return anchors_axis, anchors_rotated
 
