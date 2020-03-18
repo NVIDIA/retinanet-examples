@@ -4,7 +4,6 @@ import ctypes
 import torch
 from nvidia.dali import pipeline, ops, types
 from pycocotools.coco import COCO
-import random
 
 class COCOPipeline(pipeline.Pipeline):
     'Dali pipeline for COCO'

@@ -2,8 +2,15 @@
 
 ## Version 0.2.1 -- 2020-03-27
 
+### Added
+* The DALI dataloader (flag `--with-dali`) now supports image augmentation using:
+   * `--augment-brightness` : Randomly adjusts brightness of image
+   * `--augment-contrast` : Randomly adjusts contrast of image
+   * `--augment-hue` : Randomly adjusts hue of image
+   * `--augment-saturation` : Randomly adjusts saturation of image
+
 ### Changed
-The code in `box.py` for generating anchors has been improved.
+* The code in `box.py` for generating anchors has been improved.
 
 ## Version 0.2.0 -- 2020-03-13
 
