@@ -3,7 +3,7 @@ from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
 setup(
     name='odtk',
-    version='0.2.0',
+    version='0.2.1',
     description='Fast and accurate single shot object detector',
     author = 'NVIDIA Corporation',
     packages=['retinanet', 'retinanet.backbones'],

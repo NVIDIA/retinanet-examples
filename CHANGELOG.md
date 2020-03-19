@@ -1,6 +1,6 @@
 # NVIDIA ODTK change log
 
-## Version 0.2.1 -- 2020-03-27
+## Version 0.2.1 -- 2020-03-18
 
 ### Added
 * The DALI dataloader (flag `--with-dali`) now supports image augmentation using:
