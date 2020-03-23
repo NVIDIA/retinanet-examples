@@ -36,6 +36,7 @@
 #include "cuda/decode.h"
 #include "cuda/decode_rotate.h"
 #include "cuda/nms.h"
+#include "cuda/nms_rotate.h"
 #include "cuda/iou.h"
 
 
@@ -163,6 +164,36 @@ vector<at::Tensor> nms(at::Tensor scores, at::Tensor boxes, at::Tensor classes,
     return {nms_scores, nms_boxes, nms_classes};
 }
 
+vector<at::Tensor> nms_rotate(at::Tensor scores, at::Tensor boxes, at::Tensor classes,
+        float nms_thresh, int detections_per_im) {
+
+    CHECK_INPUT(scores);
+    CHECK_INPUT(boxes);
+    CHECK_INPUT(classes);
+
+    int batch = scores.size(0);
+    int count = scores.size(1);
+    auto options = scores.options();
+
+    auto nms_scores = at::zeros({batch, detections_per_im}, scores.options());
+    auto nms_boxes = at::zeros({batch, detections_per_im, 6}, boxes.options());
+    auto nms_classes = at::zeros({batch, detections_per_im}, classes.options());
+
+    // Create scratch buffer
+    int size = retinanet::cuda::nms_rotate(batch, nullptr, nullptr, count,
+        detections_per_im, nms_thresh, nullptr, 0, nullptr);
+    auto scratch = at::zeros({size}, options.dtype(torch::kUInt8));
+
+    // Perform NMS
+    vector<void *> inputs = {scores.data_ptr(), boxes.data_ptr(), classes.data_ptr()};
+    vector<void *> outputs = {nms_scores.data_ptr(), nms_boxes.data_ptr(), nms_classes.data_ptr()};
+    retinanet::cuda::nms_rotate(batch, inputs.data(), outputs.data(), count,
+        detections_per_im, nms_thresh,
+        scratch.data_ptr(), size, at::cuda::getCurrentCUDAStream());
+
+    return {nms_scores, nms_boxes, nms_classes};
+}
+
 vector<at::Tensor> infer(retinanet::Engine &engine, at::Tensor data) {
     CHECK_INPUT(data);
 
@@ -202,5 +233,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("decode", &decode);
     m.def("decode_rotate", &decode_rotate);
     m.def("nms", &nms);
+    m.def("nms_rotate", &nms_rotate);
     m.def("iou", &iou);
 }

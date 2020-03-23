@@ -3,8 +3,8 @@ from ._C import decode as decode_cuda
 from ._C import decode_rotate as decode_rotate_cuda
 from ._C import iou as iou_cuda
 from ._C import nms as nms_cuda
+from ._C import nms_rotate as nms_rotate_cuda
 import numpy as np
-
 
 def order_points(pts):
     pts_reorder = []
@@ -476,12 +476,9 @@ def nms(all_scores, all_boxes, all_classes, nms=0.5, ndetections=100):
 def nms_rotated(all_scores, all_boxes, all_classes, nms=0.5, ndetections=100):
     'Non Maximum Suppression'
 
-    # if torch.cuda.is_available():
-    #    return nms_cuda(
-    #        all_scores.float(), all_boxes.float(), all_classes.float(), nms, ndetections)
-
     if torch.cuda.is_available():
-        iou = iou_cuda
+        return nms_rotate_cuda(
+            all_scores.float(), all_boxes.float(), all_classes.float(), nms, ndetections)
 
     device = all_scores.device
     batch_size = all_scores.size()[0]

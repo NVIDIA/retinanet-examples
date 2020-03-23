@@ -3,12 +3,12 @@ from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
 setup(
     name='odtk',
-    version='0.2.1',
+    version='0.2.2',
     description='Fast and accurate single shot object detector',
     author = 'NVIDIA Corporation',
     packages=['retinanet', 'retinanet.backbones'],
     ext_modules=[CUDAExtension('retinanet._C',
-        ['csrc/extensions.cpp', 'csrc/engine.cpp', 'csrc/cuda/decode.cu', 'csrc/cuda/decode_rotate.cu', 'csrc/cuda/nms.cu', 'csrc/cuda/iou.cu'],
+        ['csrc/extensions.cpp', 'csrc/engine.cpp', 'csrc/cuda/decode.cu', 'csrc/cuda/decode_rotate.cu', 'csrc/cuda/nms.cu', 'csrc/cuda/nms_rotate.cu', 'csrc/cuda/iou.cu'],
         extra_compile_args={
             'cxx': ['-std=c++14', '-O2', '-Wall'],
             'nvcc': [
