@@ -33,6 +33,7 @@
 #include <optional>
 
 #include "engine.h"
+#include "engine_rotate.h"
 #include "cuda/decode.h"
 #include "cuda/decode_rotate.h"
 #include "cuda/nms.h"
@@ -107,7 +108,7 @@ vector<at::Tensor> decode_rotate(at::Tensor cls_head, at::Tensor box_head,
     CHECK_INPUT(box_head);
 
     int batch = cls_head.size(0);
-    int num_anchors = anchors.size() / 4;
+    int num_anchors = anchors.size() / 6; //or 4?
     int num_classes = cls_head.size(1) / num_anchors;
     int height = cls_head.size(2);
     int width = cls_head.size(3);
@@ -216,6 +217,28 @@ vector<at::Tensor> infer(retinanet::Engine &engine, at::Tensor data) {
     return {scores, boxes, classes};
 }
 
+vector<at::Tensor> infer_rotate(retinanet::EngineRotate &engine, at::Tensor data) {
+    CHECK_INPUT(data);
+
+    int batch = data.size(0);
+    auto input_size = engine.getInputSize();
+    data = at::constant_pad_nd(data, {0, input_size[1] - data.size(3), 0, input_size[0] - data.size(2)});
+
+    int num_detections = engine.getMaxDetections();
+    auto scores = at::zeros({batch, num_detections}, data.options());
+    auto boxes = at::zeros({batch, num_detections, 6}, data.options());
+    auto classes = at::zeros({batch, num_detections}, data.options());
+
+    vector<void *> buffers;
+    for (auto buffer : {data, scores, boxes, classes}) {
+        buffers.push_back(buffer.data<float>());
+    }
+
+    engine.infer(buffers);
+
+    return {scores, boxes, classes};
+}
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     pybind11::class_<retinanet::Engine>(m, "Engine")
         .def(pybind11::init<const char *, size_t, size_t, string, float,
@@ -229,6 +252,19 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
         })
         .def("__call__", [](retinanet::Engine &engine, at::Tensor data) {
             return infer(engine, data);
+        });
+    pybind11::class_<retinanet::EngineRotate>(m, "EngineRotate")
+        .def(pybind11::init<const char *, size_t, size_t, string, float,
+            int, const vector<vector<float>>&, float, int, const vector<string>&, string, string, bool>())
+        .def("save", &retinanet::EngineRotate::save)
+        .def("infer", &retinanet::EngineRotate::infer)
+        .def_property_readonly("stride", &retinanet::EngineRotate::getStride)
+        .def_property_readonly("input_size", &retinanet::EngineRotate::getInputSize)
+        .def_static("load", [](const string &path) {
+            return new retinanet::EngineRotate(path);
+        })
+        .def("__call__", [](retinanet::EngineRotate &engine, at::Tensor data) {
+            return infer_rotate(engine, data);
         });
     m.def("decode", &decode);
     m.def("decode_rotate", &decode_rotate);

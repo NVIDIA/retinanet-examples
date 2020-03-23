@@ -9,7 +9,7 @@ import torch.multiprocessing
 
 from retinanet import infer, train, utils
 from retinanet.model import Model, ModelRotated
-from retinanet._C import Engine
+from retinanet._C import Engine, EngineRotate
 
 
 def parse(args):
@@ -176,6 +176,8 @@ def worker(rank, args, world, model, state):
                     regularization_l2=args.regularization_l2, rotated_bbox=args.rotated_bbox)
 
     elif args.command == 'infer':
+        if args.rotated_bbox:
+            Engine = EngineRotate
         if model is None:
             if rank == 0: print('Loading CUDA engine from {}...'.format(os.path.basename(args.model)))
             model = Engine.load(args.model)
@@ -186,9 +188,9 @@ def worker(rank, args, world, model, state):
                     rotated_bbox=args.rotated_bbox)
 
     elif args.command == 'export':
-        if args.rotated_bbox:
-            raise NotImplementedError(
-                "This rep is currently unable to support exporting rotated detections to ONNX or TensorRT engines.")
+        #if args.rotated_bbox:
+        #    raise NotImplementedError(
+        #        "This rep is currently unable to support exporting rotated detections to ONNX or TensorRT engines.")
         onnx_only = args.export.split('.')[-1] == 'onnx'
         input_size = args.size * 2 if len(args.size) == 1 else args.size
 

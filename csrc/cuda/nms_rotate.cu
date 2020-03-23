@@ -51,97 +51,96 @@ typedef __host__ __device__ struct float6
 float x1, y1, x2, y2, s, c; 
 };
 
+class Vector_ {
 
-  class Vector_ {
-
-  public:
-    __host__ __device__
-    Vector_( );					// Default constructor
-  
-    __host__ __device__
-    ~Vector_( );					// Deconstructor
-  
-    __host__ __device__
-    Vector_( float2 const point );
-  
-    float2 const p;
-  
-    friend class Line_;
-  
-  private:
-    __host__ __device__
-    float cross( Vector_ const v ) const;
-  };
-  
-  Vector_::Vector_( ) :
-      p( make_float2( 0.0f, 0.0f ) ) {
-  }
-  
-  Vector_::~Vector_( ) {
-  }
-  
-  Vector_::Vector_( float2 const point ) :
-      p( point ) {
-  }
-  
-  float Vector_::cross( Vector_ const v ) const {
-    return ( p.x * v.p.y - p.y * v.p.x );
-  }
-  
-  class Line_ {
-  
-  public:
-    __host__ __device__
-    Line_( );					// Default constructor
-  
-    __host__ __device__
-    ~Line_( );					// Deconstructor
-  
-    __host__ __device__
-    Line_( Vector_ const v1, Vector_ const v2 );
-  
-    __host__ __device__
-    float call( Vector_ const v ) const;
-  
-    __host__ __device__
-    float2 intersection( Line_ const l ) const;
-  
-  private:
-    float const a;
-    float const b;
-    float const c;
-  };
-  
-  Line_::Line_( ) :
-      a( 0.0f ), b( 0.0f ), c( 0.0f ) {
-  }
-  
-  Line_::~Line_( ) {
-  
-  }
-  
-  Line_::Line_( Vector_ const v1, Vector_ const v2 ) :
-      a( v2.p.y - v1.p.y ), b( v1.p.x - v2.p.x ), c( v2.cross( v1 ) ) {
-  }
-  
-  float Line_::call( Vector_ const v ) const {
-    return ( a * v.p.x + b * v.p.y + c );
-  }
-  
-  float2 Line_::intersection( Line_ const l ) const {
-    float w = a * l.b - b * l.a;
-    return ( make_float2( ( b * l.c - c * l.b ) / w, ( c * l.a - a * l.c ) / w ) );
-  }
-  
-  template<typename T>
+public:
   __host__ __device__
-  void rotateLeft( T * array, int const & count ) {
-  
-    T temp = array[0];
-    for ( int i = 0; i < count - 1; i++ )
-      array[i] = array[i + 1];
-    array[count - 1] = temp;
-  }
+  Vector_( );					// Default constructor
+
+  __host__ __device__
+  ~Vector_( );					// Deconstructor
+
+  __host__ __device__
+  Vector_( float2 const point );
+
+  float2 const p;
+
+  friend class Line_;
+
+private:
+  __host__ __device__
+  float cross( Vector_ const v ) const;
+};
+
+Vector_::Vector_( ) :
+    p( make_float2( 0.0f, 0.0f ) ) {
+}
+
+Vector_::~Vector_( ) {
+}
+
+Vector_::Vector_( float2 const point ) :
+    p( point ) {
+}
+
+float Vector_::cross( Vector_ const v ) const {
+  return ( p.x * v.p.y - p.y * v.p.x );
+}
+
+class Line_ {
+
+public:
+  __host__ __device__
+  Line_( );					// Default constructor
+
+  __host__ __device__
+  ~Line_( );					// Deconstructor
+
+  __host__ __device__
+  Line_( Vector_ const v1, Vector_ const v2 );
+
+  __host__ __device__
+  float call( Vector_ const v ) const;
+
+  __host__ __device__
+  float2 intersection( Line_ const l ) const;
+
+private:
+  float const a;
+  float const b;
+  float const c;
+};
+
+Line_::Line_( ) :
+    a( 0.0f ), b( 0.0f ), c( 0.0f ) {
+}
+
+Line_::~Line_( ) {
+
+}
+
+Line_::Line_( Vector_ const v1, Vector_ const v2 ) :
+    a( v2.p.y - v1.p.y ), b( v1.p.x - v2.p.x ), c( v2.cross( v1 ) ) {
+}
+
+float Line_::call( Vector_ const v ) const {
+  return ( a * v.p.x + b * v.p.y + c );
+}
+
+float2 Line_::intersection( Line_ const l ) const {
+  float w = a * l.b - b * l.a;
+  return ( make_float2( ( b * l.c - c * l.b ) / w, ( c * l.a - a * l.c ) / w ) );
+}
+
+template<typename T>
+__host__ __device__
+void rotateLeft( T * array, int const & count ) {
+
+  T temp = array[0];
+  for ( int i = 0; i < count - 1; i++ )
+    array[i] = array[i + 1];
+  array[count - 1] = temp;
+}
 
 __global__ void nms_rotate_kernel(
       const int num_per_thread, const float threshold, const int num_detections,
@@ -281,8 +280,18 @@ __global__ void nms_rotate_kernel(
     
           float union_area = ( abs( irect_area ) + abs( mrect_area ) ) / 2.0f;
           
-          float overlap = intersection_area / ( union_area - intersection_area ); //Check nans and infs
+          float overlap;
           
+          if ( isnan(intersection_area) && isnan(union_area) ){
+            overlap = 1.0f;
+          }
+          else if ( isnan(intersection_area) ) {
+            overlap = 0.0f;
+          }
+          else {
+            overlap = intersection_area / ( union_area - intersection_area ); //Check nans and inf
+          }
+
           if (overlap > threshold) {
             scores[ii] = 0.0f;
           }

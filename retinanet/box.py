@@ -91,24 +91,24 @@ def generate_anchors(stride, ratio_vals, scales_vals):
     return torch.cat([xy1, xy2], dim=1)
 
 
-def generate_anchors_rotated(stride, ratio_vals, scales_vals, angles_vals, device):
+def generate_anchors_rotated(stride, ratio_vals, scales_vals, angles_vals):
     'Generate anchors coordinates from scales/ratios/angles'
 
-    scales = torch.FloatTensor(scales_vals).to(device).repeat(len(ratio_vals), 1)
+    scales = torch.FloatTensor(scales_vals).repeat(len(ratio_vals), 1)
     scales = scales.transpose(0, 1).contiguous().view(-1, 1)
-    ratios = torch.FloatTensor(ratio_vals * len(scales_vals)).to(device)
+    ratios = torch.FloatTensor(ratio_vals * len(scales_vals))
 
-    wh = torch.FloatTensor([stride]).to(device).repeat(len(ratios), 2)
+    wh = torch.FloatTensor([stride]).repeat(len(ratios), 2)
     ws = torch.sqrt(wh[:, 0] * wh[:, 1] / ratios)
     dwh = torch.stack([ws, ws * ratios], dim=1)
 
     xy1 = 0.5 * (wh - dwh * scales)
     xy3 = 0.5 * (wh + dwh * scales)
-    xy2 = xy1 + (xy3 - xy1) * torch.FloatTensor([0, 1]).to(device)
-    xy4 = xy1 + (xy3 - xy1) * torch.FloatTensor([1, 0]).to(device)
+    xy2 = xy1 + (xy3 - xy1) * torch.FloatTensor([0, 1])
+    xy4 = xy1 + (xy3 - xy1) * torch.FloatTensor([1, 0])
 
     anchors = torch.stack([xy1, xy2, xy3, xy4], 1).view(-1, 4, 2)
-    angles = torch.FloatTensor(angles_vals).to(device)
+    angles = torch.FloatTensor(angles_vals)
     anchors = anchors.repeat(angles.size(0), 1, 1)
     theta = angles.repeat(xy1.size(0), 1).transpose(0, 1).contiguous().view(-1)
 
@@ -117,9 +117,9 @@ def generate_anchors_rotated(stride, ratio_vals, scales_vals, angles_vals, devic
 
     u = torch.stack([torch.cos(theta), -torch.sin(theta)], dim=1)
     l = torch.stack([torch.sin(theta), torch.cos(theta)], dim=1)
-    R = torch.stack([u, l], dim=1).to(device)
+    R = torch.stack([u, l], dim=1)
 
-    cents = torch.FloatTensor([stride / 2]).to(device)
+    cents = torch.FloatTensor([stride / 2])
     anchors_axis = torch.cat([xmin_ymin, xmax_ymax], dim=1)
     anchors_rotated = order_points(torch.matmul(anchors - cents, R) + cents).view(-1, 8)
 
@@ -266,6 +266,12 @@ def snap_to_anchors_rotated(boxes, size, stride, anchors, num_classes, device):
 
     boxes, classes = boxes.split(5, dim=1)
     boxes_axis, boxes_rotated = rotate_boxes(boxes)
+    
+    boxes_axis = boxes_axis.to(device)
+    boxes_axis = boxes_rotated.to(device)
+    anchors_axis = anchors_axis.to(device)
+    anchors_rotated = anchors_rotated.to(device)
+
 
     # Generate anchors
     x, y = torch.meshgrid([torch.arange(0, size[i], stride, device=device, dtype=classes.dtype) for i in range(2)])
