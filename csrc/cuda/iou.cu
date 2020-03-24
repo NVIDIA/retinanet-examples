@@ -35,7 +35,7 @@
 constexpr int kTPB = 64;	// threads per block
 constexpr int kCorners = 4;
 constexpr int kPoints = 8;
-constexpr float padding = 10000.f;
+constexpr float padding = 0.0f;
 
 
 namespace retinanet {
@@ -167,11 +167,11 @@ __global__ void iou_cuda_kernel(
 
 #pragma unroll
 		for ( int b = 0; b < kCorners; b++ ){
-			intersection[b] = padfloat2(b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )], padding);
-			rect1[b] = padfloat2(b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )], padding);
-			rect1_shift[b] = padfloat2(b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )], padding);
-			rect2[b] = padfloat2(a_box_vals[( tid * kCorners + b ) % ( numAnchors * kCorners )], padding);
-			rect2_shift[b] = padfloat2(a_box_vals[( tid * kCorners + b ) % ( numAnchors * kCorners )], padding);
+			intersection[b] = b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )];
+			rect1[b] = b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )];
+			rect1_shift[b] = b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )];
+			rect2[b] = a_box_vals[( tid * kCorners + b ) % ( numAnchors * kCorners )];
+			rect2_shift[b] = a_box_vals[( tid * kCorners + b ) % ( numAnchors * kCorners )];
 		}
 
 		rotateLeft( rect1_shift, 4 ); 

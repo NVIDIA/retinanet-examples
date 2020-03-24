@@ -5,76 +5,7 @@ from ._C import iou as iou_cuda
 from ._C import nms as nms_cuda
 from ._C import nms_rotate as nms_rotate_cuda
 import numpy as np
-
-def order_points(pts):
-    pts_reorder = []
-
-    for idx, pt in enumerate(pts):
-        idx = torch.argsort(pt[:, 0])
-        xSorted = pt[idx, :]
-        leftMost = xSorted[:2, :]
-        rightMost = xSorted[2:, :]
-
-        leftMost = leftMost[torch.argsort(leftMost[:, 1]), :]
-        (tl, bl) = leftMost
-
-        D = torch.cdist(tl[np.newaxis], rightMost)[0]
-        (br, tr) = rightMost[torch.argsort(D, descending=True), :]
-        pts_reorder.append(torch.stack([tl, tr, br, bl]))
-
-    return torch.stack([p for p in pts_reorder])
-
-
-def rotate_boxes(boxes, points=False):
-    '''
-    Rotate target bounding boxes
-
-    Input:
-        Target boxes (xmin_ymin, width_height, theta)
-    Output:
-        boxes_axis (xmin_ymin, xmax_ymax, theta)
-        boxes_rotated (xy0, xy1, xy2, xy3)
-    '''
-
-    u = torch.stack([torch.cos(boxes[:, 4]), torch.sin(boxes[:, 4])], dim=1)
-    l = torch.stack([-torch.sin(boxes[:, 4]), torch.cos(boxes[:, 4])], dim=1)
-    R = torch.stack([u, l], dim=1)
-
-    if points:
-        cents = torch.stack([(boxes[:, 0] + boxes[:, 2]) / 2, (boxes[:, 1] + boxes[:, 3]) / 2], 1).transpose(1, 0)
-        boxes_rotated = torch.stack([boxes[:, 0], boxes[:, 1],
-                                     boxes[:, 2], boxes[:, 1],
-                                     boxes[:, 2], boxes[:, 3],
-                                     boxes[:, 0], boxes[:, 3],
-                                     boxes[:, -2],
-                                     boxes[:, -1]], 1)
-
-    else:
-        cents = torch.stack([boxes[:, 0] + (boxes[:, 2] - 1) / 2, boxes[:, 1] + (boxes[:, 3] - 1) / 2], 1).transpose(1,
-                                                                                                                     0)
-        boxes_rotated = torch.stack([boxes[:, 0], boxes[:, 1],
-                                     (boxes[:, 0] + boxes[:, 2] - 1), boxes[:, 1],
-                                     (boxes[:, 0] + boxes[:, 2] - 1), (boxes[:, 1] + boxes[:, 3] - 1),
-                                     boxes[:, 0], (boxes[:, 1] + boxes[:, 3] - 1),
-                                     boxes[:, -2],
-                                     boxes[:, -1]], 1)
-
-    xy0R = torch.matmul(R, boxes_rotated[:, :2].transpose(1, 0) - cents) + cents
-    xy1R = torch.matmul(R, boxes_rotated[:, 2:4].transpose(1, 0) - cents) + cents
-    xy2R = torch.matmul(R, boxes_rotated[:, 4:6].transpose(1, 0) - cents) + cents
-    xy3R = torch.matmul(R, boxes_rotated[:, 6:8].transpose(1, 0) - cents) + cents
-
-    xy0R = torch.stack([xy0R[i, :, i] for i in range(xy0R.size(0))])
-    xy1R = torch.stack([xy1R[i, :, i] for i in range(xy1R.size(0))])
-    xy2R = torch.stack([xy2R[i, :, i] for i in range(xy2R.size(0))])
-    xy3R = torch.stack([xy3R[i, :, i] for i in range(xy3R.size(0))])
-
-    boxes_axis = torch.cat([boxes[:, :2], boxes[:, :2] + boxes[:, 2:4] - 1,
-                            torch.sin(boxes[:, -1, None]), torch.cos(boxes[:, -1, None])], 1)
-    boxes_rotated = order_points(torch.stack([xy0R, xy1R, xy2R, xy3R], dim=1)).view(-1, 8)
-
-    return boxes_axis, boxes_rotated
-
+from .utils import order_points, rotate_boxes
 
 def generate_anchors(stride, ratio_vals, scales_vals):
     'Generate anchors coordinates from scales/ratios'
@@ -121,7 +52,8 @@ def generate_anchors_rotated(stride, ratio_vals, scales_vals, angles_vals):
 
     cents = torch.FloatTensor([stride / 2])
     anchors_axis = torch.cat([xmin_ymin, xmax_ymax], dim=1)
-    anchors_rotated = order_points(torch.matmul(anchors - cents, R) + cents).view(-1, 8)
+    #anchors_rotated = order_points(torch.matmul(anchors - cents, R) + cents).view(-1, 8)
+    anchors_rotated = order_points(torch.matmul(R,(anchors - cents).transpose(1,2)).transpose(1,2) + cents).view(-1, 8)
 
     return anchors_axis, anchors_rotated
 
@@ -268,10 +200,9 @@ def snap_to_anchors_rotated(boxes, size, stride, anchors, num_classes, device):
     boxes_axis, boxes_rotated = rotate_boxes(boxes)
     
     boxes_axis = boxes_axis.to(device)
-    boxes_axis = boxes_rotated.to(device)
+    boxes_rotated = boxes_rotated.to(device)
     anchors_axis = anchors_axis.to(device)
     anchors_rotated = anchors_rotated.to(device)
-
 
     # Generate anchors
     x, y = torch.meshgrid([torch.arange(0, size[i], stride, device=device, dtype=classes.dtype) for i in range(2)])
