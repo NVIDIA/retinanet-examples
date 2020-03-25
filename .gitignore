@@ -8,6 +8,8 @@ odtk/tensorrt/src/*.cxx
 *.egg-info
 build
 dist
+models
+data_tools
 .vscode
 *.jpg
 !tests/*.jpg

@@ -30,38 +30,51 @@ def order_points(pts):
     return torch.stack([p for p in pts_reorder])
 
 def rotate_boxes(boxes, points=False):
+    '''
+    Rotate target bounding boxes 
     
-    #Rotate target bounding boxes 
-    
-    #Input:  
-    #    Target boxes (xmin_ymin, width_height, theta)
-    #Output:
-    #    boxes_axis (xmin_ymin, xmax_ymax, sin(theta), cos(theta))
-    #    boxes_rotated (xy0, xy1, xy2, xy3)
-    
-    boxes, theta = boxes.split(4, dim=1)
-    theta = theta.squeeze(1)
-    
+    Input:  
+        Target boxes (xmin_ymin, width_height, theta)
+    Output:
+        boxes_axis (xmin_ymin, xmax_ymax, theta)
+        boxes_rotated (xy0, xy1, xy2, xy3)
+    '''
+
+    u = torch.stack([torch.cos(boxes[:,4]), torch.sin(boxes[:,4])], dim=1)
+    l = torch.stack([-torch.sin(boxes[:,4]), torch.cos(boxes[:,4])], dim=1)
+    R = torch.stack([u, l], dim=1)
+
     if points:
-        boxes = torch.stack([boxes[:,0],boxes[:,1], 
+        cents = torch.stack([(boxes[:,0]+boxes[:,2])/2, (boxes[:,1]+boxes[:,3])/2],1).transpose(1,0)
+        boxes_rotated = torch.stack([boxes[:,0],boxes[:,1], 
             boxes[:,2], boxes[:,1], 
             boxes[:,2], boxes[:,3], 
-            boxes[:,0], boxes[:,3]],1).view(-1,4,2)
-    else:
-        boxes = torch.stack([boxes[:,0],boxes[:,1], 
-                (boxes[:,0]+boxes[:,2]), boxes[:,1], 
-                (boxes[:,0]+boxes[:,2]), (boxes[:,1]+boxes[:,3]), 
-                boxes[:,0], (boxes[:,1]+boxes[:,3])],1).view(-1,4,2)
-    
-    boxes_axis = torch.cat([torch.stack([boxes[:,0,:], boxes[:,2,:]],1).view(-1,4), 
-            torch.sin(theta[:, None]), torch.cos(theta[:, None])],1)
+            boxes[:,0], boxes[:,3], 
+            boxes[:,-2],
+            boxes[:,-1]],1)
 
-    u = torch.stack([torch.cos(theta), -torch.sin(theta)], dim=1)
-    l = torch.stack([torch.sin(theta), torch.cos(theta)], dim=1)
-    R = torch.stack([u, l], dim=1)
-    cents = torch.mean(boxes, 1)[:,None,:].repeat(1,4,1)
-    #boxes_rotated = order_points(torch.matmul(boxes - cents, R) + cents).view(-1,8)
-    boxes_rotated = order_points(torch.matmul(R,(boxes - cents).transpose(1,2)).transpose(1,2) + cents).view(-1,8)
+    else:
+        cents = torch.stack([boxes[:,0]+(boxes[:,2]-1)/2, boxes[:,1]+(boxes[:,3]-1)/2],1).transpose(1,0)
+        boxes_rotated = torch.stack([boxes[:,0],boxes[:,1], 
+            (boxes[:,0]+boxes[:,2]-1), boxes[:,1], 
+            (boxes[:,0]+boxes[:,2]-1), (boxes[:,1]+boxes[:,3]-1), 
+            boxes[:,0], (boxes[:,1]+boxes[:,3]-1), 
+            boxes[:,-2],
+            boxes[:,-1]],1)
+
+    xy0R = torch.matmul(R,boxes_rotated[:,:2].transpose(1,0) - cents) + cents
+    xy1R = torch.matmul(R,boxes_rotated[:,2:4].transpose(1,0) - cents) + cents
+    xy2R = torch.matmul(R,boxes_rotated[:,4:6].transpose(1,0) - cents) + cents
+    xy3R = torch.matmul(R,boxes_rotated[:,6:8].transpose(1,0) - cents) + cents
+
+    xy0R = torch.stack([xy0R[i,:,i] for i in range(xy0R.size(0))])
+    xy1R = torch.stack([xy1R[i,:,i] for i in range(xy1R.size(0))])
+    xy2R = torch.stack([xy2R[i,:,i] for i in range(xy2R.size(0))])
+    xy3R = torch.stack([xy3R[i,:,i] for i in range(xy3R.size(0))])
+
+    boxes_axis = torch.cat([boxes[:, :2], boxes[:, :2] + boxes[:, 2:4] - 1, 
+        torch.sin(boxes[:,-1, None]), torch.cos(boxes[:,-1, None])], 1)
+    boxes_rotated = order_points(torch.stack([xy0R,xy1R,xy2R,xy3R],dim = 1)).view(-1,8)
     
     return boxes_axis, boxes_rotated
 

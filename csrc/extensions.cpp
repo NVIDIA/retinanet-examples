@@ -108,7 +108,7 @@ vector<at::Tensor> decode_rotate(at::Tensor cls_head, at::Tensor box_head,
     CHECK_INPUT(box_head);
 
     int batch = cls_head.size(0);
-    int num_anchors = anchors.size() / 6; //or 4?
+    int num_anchors = anchors.size() / 4;
     int num_classes = cls_head.size(1) / num_anchors;
     int height = cls_head.size(2);
     int width = cls_head.size(3);
