@@ -35,8 +35,7 @@
 constexpr int kTPB = 64;	// threads per block
 constexpr int kCorners = 4;
 constexpr int kPoints = 8;
-constexpr float padding = 0.0f;
-
+// constexpr float padding = 0.0f;
 
 namespace retinanet {
 namespace cuda {
@@ -132,14 +131,14 @@ void rotateLeft( T * array, int const & count ) {
 	array[count - 1] = temp;
 }
 
-__host__ __device__ static __inline__ float2 padfloat2 
-(float2 a, float b)
-{
-float2 res;
-res.x = a.x + b;
-res.y = a.y + b;
-return res;
-}
+// __host__ __device__ static __inline__ float2 padfloat2 
+// (float2 a, float b)
+// {
+// float2 res;
+// res.x = a.x + b;
+// res.y = a.y + b;
+// return res;
+// }
 
 __global__ void iou_cuda_kernel(
 	int const numBoxes,

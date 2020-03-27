@@ -85,6 +85,8 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
     while iteration < iterations:
         cls_losses, box_losses = [], []
         for i, (data, target) in enumerate(data_iterator):
+            if iteration>=iterations:
+                break
 
             # Forward pass
             profiler.start('fw')
@@ -168,7 +170,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
                       is_validation=True, verbose=False, rotated_bbox=rotated_bbox)
                 model.train()
 
-            if iteration == iterations:
+            if (iteration==iterations and not rotated_bbox) or (iteration>iterations and rotated_bbox):
                 break
 
     if logdir is not None:

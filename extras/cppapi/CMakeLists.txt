@@ -12,17 +12,23 @@ if(DEFINED TensorRT_DIR)
 endif(DEFINED TensorRT_DIR)
 include_directories(${CUDA_INCLUDE_DIRS})
 
-add_library(retinanet
+add_library(retinanet SHARED
   ../../csrc/cuda/decode.h
   ../../csrc/cuda/decode.cu
   ../../csrc/cuda/nms.h
   ../../csrc/cuda/nms.cu
+  ../../csrc/cuda/decode_rotate.h
+  ../../csrc/cuda/decode_rotate.cu
+  ../../csrc/cuda/nms_rotate.h
+  ../../csrc/cuda/nms_rotate.cu
+  ../../csrc/cuda/iou.h
+  ../../csrc/cuda/iou.cu
   ../../csrc/cuda/utils.h
   ../../csrc/engine.h
   ../../csrc/engine.cpp
   ../../csrc/calibrator.h
 )
-set_target_properties(retinanet PROPERTIES 
+set_target_properties(retinanet PROPERTIES
   CUDA_RESOLVE_DEVICE_SYMBOLS ON
 )
 include_directories(${OpenCV_INCLUDE_DIRS})

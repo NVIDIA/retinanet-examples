@@ -23,7 +23,6 @@
 #include "nms_rotate.h"
 #include "utils.h"
 
-
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
@@ -45,11 +44,6 @@ constexpr float padding = 10000.0f;
 
 namespace retinanet {
 namespace cuda {
-
-typedef __host__ __device__ struct float6
-{
-float x1, y1, x2, y2, s, c; 
-};
 
 class Vector_ {
 
@@ -157,12 +151,12 @@ __global__ void nms_rotate_kernel(
         int mcls = classes[max_idx];
         if (mcls == icls) {
         
-          float6 ibox = {boxes[idx].x1 + padding, boxes[idx].y1 + padding, 
-            boxes[idx].x2 + padding, boxes[idx].y2 + padding,
-            boxes[idx].s, boxes[idx].c};
-          float6 mbox = {boxes[max_idx].x1 + padding, boxes[max_idx].y1 + padding, 
-            boxes[max_idx].x2 + padding, boxes[max_idx].y2 + padding,
-            boxes[idx].s, boxes[idx].c};
+          float6 ibox = make_float6(make_float4(boxes[idx].x1 + padding, boxes[idx].y1 + padding, 
+            boxes[idx].x2 + padding, boxes[idx].y2 + padding),
+            make_float2(boxes[idx].s, boxes[idx].c));
+          float6 mbox = make_float6(make_float4(boxes[max_idx].x1 + padding, boxes[max_idx].y1 + padding, 
+            boxes[max_idx].x2 + padding, boxes[max_idx].y2 + padding),
+            make_float2(boxes[idx].s, boxes[idx].c));
         
           float2 intersection[kPoints] { -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,
             -1.0f, -1.0f, -1.0f, -1.0f, -1.0f };          

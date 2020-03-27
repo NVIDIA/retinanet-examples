@@ -40,11 +40,6 @@
 namespace retinanet {
 namespace cuda {
 
-typedef __host__ __device__ struct float6
-{
-  float x, y, z, u, v, w;
-};
-
 int decode_rotate(int batch_size,
           const void *const *inputs, void **outputs,
           size_t height, size_t width, size_t scale,
@@ -126,14 +121,18 @@ int decode_rotate(int batch_size,
         int a = (i / num_classes / height / width) % num_anchors;
         int cls = (i / height / width) % num_classes;
 
-        float6 box = float6{
-          in_boxes[((a * 6 + 0) * height + y) * width + x],
-          in_boxes[((a * 6 + 1) * height + y) * width + x],
-          in_boxes[((a * 6 + 2) * height + y) * width + x],
-          in_boxes[((a * 6 + 3) * height + y) * width + x],
-          in_boxes[((a * 6 + 4) * height + y) * width + x],
-          in_boxes[((a * 6 + 5) * height + y) * width + x]
-        };
+        float6 box = make_float6(
+          make_float4(
+            in_boxes[((a * 6 + 0) * height + y) * width + x],
+            in_boxes[((a * 6 + 1) * height + y) * width + x],
+            in_boxes[((a * 6 + 2) * height + y) * width + x],
+            in_boxes[((a * 6 + 3) * height + y) * width + x]
+          ),
+          make_float2(
+            in_boxes[((a * 6 + 4) * height + y) * width + x],
+            in_boxes[((a * 6 + 5) * height + y) * width + x]
+          )
+        );
 
         if (has_anchors) {
           // Add anchors offsets to deltas
@@ -148,21 +147,23 @@ int decode_rotate(int batch_size,
 
           float w = x2 - x1 + 1.0f;
           float h = y2 - y1 + 1.0f;
-          float pred_ctr_x = box.x * w + x1 + 0.5f * w;
-          float pred_ctr_y = box.y * h + y1 + 0.5f * h;
-          float pred_w = exp(box.z) * w;
-          float pred_h = exp(box.u) * h;
-          float pred_sin = box.v;
-          float pred_cos = box.w;
+          float pred_ctr_x = box.x1 * w + x1 + 0.5f * w;
+          float pred_ctr_y = box.y1 * h + y1 + 0.5f * h;
+          float pred_w = exp(box.x2) * w;
+          float pred_h = exp(box.y2) * h;
+          float pred_sin = box.s;
+          float pred_cos = box.c;
 
 
-          box = float6{
-            max(0.0f, pred_ctr_x - 0.5f * pred_w),
-            max(0.0f, pred_ctr_y - 0.5f * pred_h),
-            min(pred_ctr_x + 0.5f * pred_w - 1.0f, width * scale - 1.0f),
-            min(pred_ctr_y + 0.5f * pred_h - 1.0f, height * scale - 1.0f),
-            pred_sin, pred_cos
-          };
+          box = make_float6(
+            make_float4(
+              max(0.0f, pred_ctr_x - 0.5f * pred_w),
+              max(0.0f, pred_ctr_y - 0.5f * pred_h),
+              min(pred_ctr_x + 0.5f * pred_w - 1.0f, width * scale - 1.0f),
+              min(pred_ctr_y + 0.5f * pred_h - 1.0f, height * scale - 1.0f)
+            ),
+            make_float2(pred_sin, pred_cos)
+          );
         }
 
         return thrust::make_tuple(in_scores[i], box, cls);

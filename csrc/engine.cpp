@@ -30,6 +30,8 @@
 
 #include "plugins/DecodePlugin.h"
 #include "plugins/NMSPlugin.h"
+#include "plugins/DecodeRotatePlugin.h"
+#include "plugins/NMSRotatePlugin.h"
 #include "calibrator.h"
 
 using namespace nvinfer1;
@@ -87,7 +89,7 @@ Engine::~Engine() {
 }
 
 Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string precision,
-    float score_thresh, int top_n, const vector<vector<float>>& anchors,
+    float score_thresh, int top_n, const vector<vector<float>>& anchors, bool rotated,
     float nms_thresh, int detections_per_im, const vector<string>& calibration_images, 
     string model_name, string calibration_table, bool verbose, size_t workspace_size) {
 
@@ -124,7 +126,6 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string pr
 
     // Add decode plugins
     cout << "Building accelerated plugins..." << endl;
-    vector<DecodePlugin> decodePlugins;
     vector<ITensor *> scores, boxes, classes;
     auto nbOutputs = network->getNbOutputs();
     for (int i = 0; i < nbOutputs / 2; i++) {
@@ -134,9 +135,10 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string pr
 
         int scale = inputDims.d[2] / outputDims.d[2];
         auto decodePlugin = DecodePlugin(score_thresh, top_n, anchors[i], scale);
-        decodePlugins.push_back(decodePlugin);
+        auto decodeRotatePlugin = DecodeRotatePlugin(score_thresh, top_n, anchors[i], scale);
         vector<ITensor *> inputs = {classOutput, boxOutput};
-        auto layer = network->addPluginV2(inputs.data(), inputs.size(), decodePlugin);
+        auto layer = (!rotated) ? network->addPluginV2(inputs.data(), inputs.size(), decodePlugin) \
+                    : network->addPluginV2(inputs.data(), inputs.size(), decodeRotatePlugin);
         scores.push_back(layer->getOutput(0));
         boxes.push_back(layer->getOutput(1));
         classes.push_back(layer->getOutput(2));
@@ -157,7 +159,9 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string pr
     
     // Add NMS plugin
     auto nmsPlugin = NMSPlugin(nms_thresh, detections_per_im);
-    auto layer = network->addPluginV2(concat.data(), concat.size(), nmsPlugin);
+    auto nmsRotatePlugin = NMSRotatePlugin(nms_thresh, detections_per_im);
+    auto layer = (!rotated) ? network->addPluginV2(concat.data(), concat.size(), nmsPlugin) \
+                : network->addPluginV2(concat.data(), concat.size(), nmsRotatePlugin);
     vector<string> names = {"scores", "boxes", "classes"};
     for (int i = 0; i < layer->getNbOutputs(); i++) {
         auto output = layer->getOutput(i);
