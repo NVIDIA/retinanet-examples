@@ -27,7 +27,7 @@
 #include <vector>
 #include <cassert>
 
-#include "../cuda/nms_rotate.h"
+#include "../cuda/nms_iou.h"
 
 using namespace nvinfer1;
 

@@ -36,8 +36,9 @@
 #include "cuda/decode.h"
 #include "cuda/decode_rotate.h"
 #include "cuda/nms.h"
-#include "cuda/nms_rotate.h"
-#include "cuda/iou.h"
+#include "cuda/nms_iou.h"
+//#include "cuda/nms_rotate.h"
+//#include "cuda/iou.h"
 
 
 #define CHECK_CUDA(x) AT_ASSERTM(x.type().is_cuda(), #x " must be a CUDA tensor")
@@ -54,17 +55,16 @@ vector<at::Tensor> iou(at::Tensor boxes, at::Tensor anchors) {
     auto options = boxes.options();
 
     auto iou_vals = at::zeros({num_boxes*num_anchors}, options);
-    auto inter_vals = at::zeros({num_boxes*num_anchors}, options);
 
     // Calculate Polygon IOU
     vector<void *> inputs = {boxes.data_ptr(), anchors.data_ptr()};
-    vector<void *> outputs = {iou_vals.data_ptr(), inter_vals.data_ptr()};
+    vector<void *> outputs = {iou_vals.data_ptr()};
 
     retinanet::cuda::iou(inputs.data(), outputs.data(), num_boxes, num_anchors, at::cuda::getCurrentCUDAStream() );
 
     auto shape = std::vector<int64_t>{num_anchors, num_boxes};
 
-    return {iou_vals.reshape(shape), inter_vals.reshape(shape)};
+    return {iou_vals.reshape(shape)};
 }
 
 vector<at::Tensor> decode(at::Tensor cls_head, at::Tensor box_head,
