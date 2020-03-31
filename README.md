@@ -134,7 +134,7 @@ When converting the annotations from your own dataset into JSON, the following e
 If using the `--rotated-bbox` flag for rotated detections, add an additional float `theta` to the annotations. To get validation scores you also need to fill the `segmentation` section.
 ```
         "bbox" : [x, y, w, h, theta]    # all floats, where theta is measured in radians anti-clockwise from the x-axis.
-        "segmentation" : [[x1, y1], [x2, y2], [x3, y3], [x4, y4]]
+        "segmentation" : [[x1, y1, x2, y2, x3, y3, x4, y4]]
                                         # Required for validation scores.
 ```
 
