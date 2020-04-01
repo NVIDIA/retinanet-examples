@@ -157,6 +157,9 @@ def worker(rank, args, world, model, state):
         if args.batch % world != 0:
             raise RuntimeError('Batch size should be a multiple of the number of GPUs')
 
+    if model and model.angles is not None:
+        args.rotated_bbox = True
+
     if args.command == 'train':
         train.train(model, state, args.images, args.annotations,
                     args.val_images or args.images, args.val_annotations, args.resize, args.max_size, args.jitter,
