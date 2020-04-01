@@ -1,82 +1,11 @@
 import torch
 from ._C import decode as decode_cuda
-from ._C import decode_rotate as decode_rotate_cuda
 from ._C import iou as iou_cuda
 from ._C import nms as nms_cuda
 import numpy as np
+from .utils import order_points, rotate_boxes
 
-
-def order_points(pts):
-    pts_reorder = []
-
-    for idx, pt in enumerate(pts):
-        idx = torch.argsort(pt[:, 0])
-        xSorted = pt[idx, :]
-        leftMost = xSorted[:2, :]
-        rightMost = xSorted[2:, :]
-
-        leftMost = leftMost[torch.argsort(leftMost[:, 1]), :]
-        (tl, bl) = leftMost
-
-        D = torch.cdist(tl[np.newaxis], rightMost)[0]
-        (br, tr) = rightMost[torch.argsort(D, descending=True), :]
-        pts_reorder.append(torch.stack([tl, tr, br, bl]))
-
-    return torch.stack([p for p in pts_reorder])
-
-
-def rotate_boxes(boxes, points=False):
-    '''
-    Rotate target bounding boxes
-
-    Input:
-        Target boxes (xmin_ymin, width_height, theta)
-    Output:
-        boxes_axis (xmin_ymin, xmax_ymax, theta)
-        boxes_rotated (xy0, xy1, xy2, xy3)
-    '''
-
-    u = torch.stack([torch.cos(boxes[:, 4]), torch.sin(boxes[:, 4])], dim=1)
-    l = torch.stack([-torch.sin(boxes[:, 4]), torch.cos(boxes[:, 4])], dim=1)
-    R = torch.stack([u, l], dim=1)
-
-    if points:
-        cents = torch.stack([(boxes[:, 0] + boxes[:, 2]) / 2, (boxes[:, 1] + boxes[:, 3]) / 2], 1).transpose(1, 0)
-        boxes_rotated = torch.stack([boxes[:, 0], boxes[:, 1],
-                                     boxes[:, 2], boxes[:, 1],
-                                     boxes[:, 2], boxes[:, 3],
-                                     boxes[:, 0], boxes[:, 3],
-                                     boxes[:, -2],
-                                     boxes[:, -1]], 1)
-
-    else:
-        cents = torch.stack([boxes[:, 0] + (boxes[:, 2] - 1) / 2, boxes[:, 1] + (boxes[:, 3] - 1) / 2], 1).transpose(1,
-                                                                                                                     0)
-        boxes_rotated = torch.stack([boxes[:, 0], boxes[:, 1],
-                                     (boxes[:, 0] + boxes[:, 2] - 1), boxes[:, 1],
-                                     (boxes[:, 0] + boxes[:, 2] - 1), (boxes[:, 1] + boxes[:, 3] - 1),
-                                     boxes[:, 0], (boxes[:, 1] + boxes[:, 3] - 1),
-                                     boxes[:, -2],
-                                     boxes[:, -1]], 1)
-
-    xy0R = torch.matmul(R, boxes_rotated[:, :2].transpose(1, 0) - cents) + cents
-    xy1R = torch.matmul(R, boxes_rotated[:, 2:4].transpose(1, 0) - cents) + cents
-    xy2R = torch.matmul(R, boxes_rotated[:, 4:6].transpose(1, 0) - cents) + cents
-    xy3R = torch.matmul(R, boxes_rotated[:, 6:8].transpose(1, 0) - cents) + cents
-
-    xy0R = torch.stack([xy0R[i, :, i] for i in range(xy0R.size(0))])
-    xy1R = torch.stack([xy1R[i, :, i] for i in range(xy1R.size(0))])
-    xy2R = torch.stack([xy2R[i, :, i] for i in range(xy2R.size(0))])
-    xy3R = torch.stack([xy3R[i, :, i] for i in range(xy3R.size(0))])
-
-    boxes_axis = torch.cat([boxes[:, :2], boxes[:, :2] + boxes[:, 2:4] - 1,
-                            torch.sin(boxes[:, -1, None]), torch.cos(boxes[:, -1, None])], 1)
-    boxes_rotated = order_points(torch.stack([xy0R, xy1R, xy2R, xy3R], dim=1)).view(-1, 8)
-
-    return boxes_axis, boxes_rotated
-
-
-def generate_anchors(stride, ratio_vals, scales_vals):
+def generate_anchors(stride, ratio_vals, scales_vals, angles_vals=None):
     'Generate anchors coordinates from scales/ratios'
 
     scales = torch.FloatTensor(scales_vals).repeat(len(ratio_vals), 1)
@@ -91,37 +20,46 @@ def generate_anchors(stride, ratio_vals, scales_vals):
     return torch.cat([xy1, xy2], dim=1)
 
 
-def generate_anchors_rotated(stride, ratio_vals, scales_vals, angles_vals, device):
+def generate_anchors_rotated(stride, ratio_vals, scales_vals, angles_vals):
     'Generate anchors coordinates from scales/ratios/angles'
-
-    scales = torch.FloatTensor(scales_vals).to(device).repeat(len(ratio_vals), 1)
+    scales = torch.FloatTensor(scales_vals).repeat(len(ratio_vals), 1) 
     scales = scales.transpose(0, 1).contiguous().view(-1, 1)
-    ratios = torch.FloatTensor(ratio_vals * len(scales_vals)).to(device)
+    ratios = torch.FloatTensor(ratio_vals * len(scales_vals))
 
-    wh = torch.FloatTensor([stride]).to(device).repeat(len(ratios), 2)
-    ws = torch.sqrt(wh[:, 0] * wh[:, 1] / ratios)
-    dwh = torch.stack([ws, ws * ratios], dim=1)
+    wh = torch.FloatTensor([stride]).repeat(len(ratios), 2)
+    ws = torch.round(torch.sqrt(wh[:, 0] * wh[:, 1] / ratios))
+    dwh = torch.stack([ws, torch.round(ws * ratios)], dim=1)
+    
+    xy0 = 0.5 * (wh - dwh * scales)
+    xy2 = 0.5 * (wh + dwh * scales) - 1
+    xy1 = xy0 + (xy2 - xy0) * torch.FloatTensor([0,1])
+    xy3 = xy0 + (xy2 - xy0) * torch.FloatTensor([1,0])
+    
+    angles = torch.FloatTensor(angles_vals)
+    theta = angles.repeat(xy0.size(0),1)
+    theta = theta.transpose(0,1).contiguous().view(-1,1)
 
-    xy1 = 0.5 * (wh - dwh * scales)
-    xy3 = 0.5 * (wh + dwh * scales)
-    xy2 = xy1 + (xy3 - xy1) * torch.FloatTensor([0, 1]).to(device)
-    xy4 = xy1 + (xy3 - xy1) * torch.FloatTensor([1, 0]).to(device)
+    xmin_ymin = xy0.repeat(int(theta.size(0)/xy0.size(0)),1)
+    xmax_ymax = xy2.repeat(int(theta.size(0)/xy2.size(0)),1)
+    widths_heights = dwh * scales
+    widths_heights = widths_heights.repeat(int(theta.size(0)/widths_heights.size(0)),1)
 
-    anchors = torch.stack([xy1, xy2, xy3, xy4], 1).view(-1, 4, 2)
-    angles = torch.FloatTensor(angles_vals).to(device)
-    anchors = anchors.repeat(angles.size(0), 1, 1)
-    theta = angles.repeat(xy1.size(0), 1).transpose(0, 1).contiguous().view(-1)
+    u = torch.stack([torch.cos(angles), torch.sin(angles)], dim=1)
+    l = torch.stack([-torch.sin(angles), torch.cos(angles)], dim=1)
+    R = torch.stack([u, l], dim=1)
 
-    xmin_ymin = xy1.repeat(int(theta.size(0) / xy1.size(0)), 1)
-    xmax_ymax = xy3.repeat(int(theta.size(0) / xy3.size(0)), 1)
+    xy0R = torch.matmul(R,xy0.transpose(1,0) - stride/2 + 0.5) + stride/2 - 0.5
+    xy1R = torch.matmul(R,xy1.transpose(1,0) - stride/2 + 0.5) + stride/2 - 0.5
+    xy2R = torch.matmul(R,xy2.transpose(1,0) - stride/2 + 0.5) + stride/2 - 0.5
+    xy3R = torch.matmul(R,xy3.transpose(1,0) - stride/2 + 0.5) + stride/2 - 0.5
+    
+    xy0R = xy0R.permute(0,2,1).contiguous().view(-1,2)
+    xy1R = xy1R.permute(0,2,1).contiguous().view(-1,2)
+    xy2R = xy2R.permute(0,2,1).contiguous().view(-1,2)
+    xy3R = xy3R.permute(0,2,1).contiguous().view(-1,2)
 
-    u = torch.stack([torch.cos(theta), -torch.sin(theta)], dim=1)
-    l = torch.stack([torch.sin(theta), torch.cos(theta)], dim=1)
-    R = torch.stack([u, l], dim=1).to(device)
-
-    cents = torch.FloatTensor([stride / 2]).to(device)
     anchors_axis = torch.cat([xmin_ymin, xmax_ymax], dim=1)
-    anchors_rotated = order_points(torch.matmul(anchors - cents, R) + cents).view(-1, 8)
+    anchors_rotated = order_points(torch.stack([xy0R,xy1R,xy2R,xy3R],dim = 1)).view(-1,8)
 
     return anchors_axis, anchors_rotated
 
@@ -266,6 +204,11 @@ def snap_to_anchors_rotated(boxes, size, stride, anchors, num_classes, device):
 
     boxes, classes = boxes.split(5, dim=1)
     boxes_axis, boxes_rotated = rotate_boxes(boxes)
+    
+    boxes_axis = boxes_axis.to(device)
+    boxes_rotated = boxes_rotated.to(device)
+    anchors_axis = anchors_axis.to(device)
+    anchors_rotated = anchors_rotated.to(device)
 
     # Generate anchors
     x, y = torch.meshgrid([torch.arange(0, size[i], stride, device=device, dtype=classes.dtype) for i in range(2)])
@@ -309,12 +252,16 @@ def snap_to_anchors_rotated(boxes, size, stride, anchors, num_classes, device):
             depth.view(num_anchors, 1, height, width))
 
 
-def decode(all_cls_head, all_box_head, stride=1, threshold=0.05, top_n=1000, anchors=None):
+def decode(all_cls_head, all_box_head, stride=1, threshold=0.05, top_n=1000, anchors=None, rotated=False):
     'Box Decoding and Filtering'
+
+    if rotated:
+        anchors = anchors[0]
+    num_boxes = 4 if not rotated else 6
 
     if torch.cuda.is_available():
         return decode_cuda(all_cls_head.float(), all_box_head.float(),
-                           anchors.view(-1).tolist(), stride, threshold, top_n)
+            anchors.view(-1).tolist(), stride, threshold, top_n, rotated)
 
     device = all_cls_head.device
     anchors = anchors.to(device).type(all_cls_head.type())
@@ -324,13 +271,13 @@ def decode(all_cls_head, all_box_head, stride=1, threshold=0.05, top_n=1000, anc
 
     batch_size = all_cls_head.size()[0]
     out_scores = torch.zeros((batch_size, top_n), device=device)
-    out_boxes = torch.zeros((batch_size, top_n, 4), device=device)
+    out_boxes = torch.zeros((batch_size, top_n, num_boxes), device=device)
     out_classes = torch.zeros((batch_size, top_n), device=device)
 
     # Per item in batch
     for batch in range(batch_size):
         cls_head = all_cls_head[batch, :, :, :].contiguous().view(-1)
-        box_head = all_box_head[batch, :, :, :].contiguous().view(-1, 4)
+        box_head = all_box_head[batch, :, :, :].contiguous().view(-1, num_boxes)
 
         # Keep scores over threshold
         keep = (cls_head >= threshold).nonzero().view(-1)
@@ -348,60 +295,7 @@ def decode(all_cls_head, all_box_head, stride=1, threshold=0.05, top_n=1000, anc
         x = indices % width
         y = (indices / width) % height
         a = indices / num_classes / height / width
-        box_head = box_head.view(num_anchors, 4, height, width)
-        boxes = box_head[a, :, y, x]
-
-        if anchors is not None:
-            grid = torch.stack([x, y, x, y], 1).type(all_cls_head.type()) * stride + anchors[a, :]
-            boxes = delta2box(boxes, grid, [width, height], stride)
-
-        out_scores[batch, :scores.size()[0]] = scores
-        out_boxes[batch, :boxes.size()[0], :] = boxes
-        out_classes[batch, :classes.size()[0]] = classes
-
-    return out_scores, out_boxes, out_classes
-
-
-def decode_rotated(all_cls_head, all_box_head, stride=1, threshold=0.05, top_n=1000, anchors=None):
-    'Box Decoding and Filtering'
-
-    if torch.cuda.is_available():
-        return decode_rotate_cuda(all_cls_head.float(), all_box_head.float(),
-                                  anchors[0].view(-1).tolist(), stride, threshold, top_n)
-
-    device = all_cls_head.device
-    anchors = anchors[0].to(device).type(all_cls_head.type())
-    num_anchors = anchors.size()[0] if anchors is not None else 1
-    num_classes = all_cls_head.size()[1] // num_anchors
-    height, width = all_cls_head.size()[-2:]
-
-    batch_size = all_cls_head.size()[0]
-    out_scores = torch.zeros((batch_size, top_n), device=device)
-    out_boxes = torch.zeros((batch_size, top_n, 6), device=device)
-    out_classes = torch.zeros((batch_size, top_n), device=device)
-
-    # Per item in batch
-    for batch in range(batch_size):
-        cls_head = all_cls_head[batch, :, :, :].contiguous().view(-1)
-        box_head = all_box_head[batch, :, :, :].contiguous().view(-1, 6)
-
-        # Keep scores over threshold
-        keep = (cls_head >= threshold).nonzero().view(-1)
-        if keep.nelement() == 0:
-            continue
-
-        # Gather top elements
-        scores = torch.index_select(cls_head, 0, keep)
-        scores, indices = torch.topk(scores, min(top_n, keep.size()[0]), dim=0)
-        indices = torch.index_select(keep, 0, indices).view(-1)
-        classes = (indices / width / height) % num_classes
-        classes = classes.type(all_cls_head.type())
-
-        # Infer kept bboxes
-        x = indices % width
-        y = (indices / width) % height
-        a = indices / num_classes / height / width
-        box_head = box_head.view(num_anchors, 6, height, width)
+        box_head = box_head.view(num_anchors, num_boxes, height, width)
         boxes = box_head[a, :, y, x]
 
         if anchors is not None:
@@ -419,8 +313,8 @@ def nms(all_scores, all_boxes, all_classes, nms=0.5, ndetections=100):
     'Non Maximum Suppression'
 
     if torch.cuda.is_available():
-        return nms_cuda(
-            all_scores.float(), all_boxes.float(), all_classes.float(), nms, ndetections)
+        return nms_cuda(all_scores.float(), all_boxes.float(), all_classes.float(), 
+            nms, ndetections, False)
 
     device = all_scores.device
     batch_size = all_scores.size()[0]
@@ -476,12 +370,9 @@ def nms(all_scores, all_boxes, all_classes, nms=0.5, ndetections=100):
 def nms_rotated(all_scores, all_boxes, all_classes, nms=0.5, ndetections=100):
     'Non Maximum Suppression'
 
-    # if torch.cuda.is_available():
-    #    return nms_cuda(
-    #        all_scores.float(), all_boxes.float(), all_classes.float(), nms, ndetections)
-
     if torch.cuda.is_available():
-        iou = iou_cuda
+        return nms_cuda(all_scores.float(), all_boxes.float(), all_classes.float(), 
+            nms, ndetections, True)
 
     device = all_scores.device
     batch_size = all_scores.size()[0]

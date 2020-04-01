@@ -8,7 +8,7 @@ import torch.distributed
 import torch.multiprocessing
 
 from retinanet import infer, train, utils
-from retinanet.model import Model, ModelRotated
+from retinanet.model import Model
 from retinanet._C import Engine
 
 
@@ -120,19 +120,13 @@ def load_model(args, verbose=False):
 
     if args.command == 'train' and (not os.path.exists(args.model) or args.override):
         if verbose: print('Initializing model...')
-        if args.rotated_bbox:
-            model = ModelRotated(args.backbone, args.classes)
-        else:
-            model = Model(args.backbone, args.classes)
+        model = Model(backbones=args.backbone, classes=args.classes, rotated_bbox=args.rotated_bbox)
         model.initialize(args.fine_tune)
         if verbose: print(model)
 
     elif ext == '.pth' or ext == '.torch':
         if verbose: print('Loading model from {}...'.format(os.path.basename(args.model)))
-        if args.rotated_bbox:
-            model, state = ModelRotated.load(args.model)
-        else:
-            model, state = Model.load(args.model)
+        model, state = Model.load(filename=args.model, rotated_bbox=args.rotated_bbox)
         if verbose: print(model)
 
     elif args.command == 'infer' and ext in ['.engine', '.plan']:
@@ -186,9 +180,6 @@ def worker(rank, args, world, model, state):
                     rotated_bbox=args.rotated_bbox)
 
     elif args.command == 'export':
-        if args.rotated_bbox:
-            raise NotImplementedError(
-                "This rep is currently unable to support exporting rotated detections to ONNX or TensorRT engines.")
         onnx_only = args.export.split('.')[-1] == 'onnx'
         input_size = args.size * 2 if len(args.size) == 1 else args.size
 
