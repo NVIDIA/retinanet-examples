@@ -19,10 +19,8 @@ add_library(retinanet SHARED
   ../../csrc/cuda/nms.cu
   ../../csrc/cuda/decode_rotate.h
   ../../csrc/cuda/decode_rotate.cu
-  ../../csrc/cuda/nms_rotate.h
-  ../../csrc/cuda/nms_rotate.cu
-  ../../csrc/cuda/iou.h
-  ../../csrc/cuda/iou.cu
+  ../../csrc/cuda/nms_iou.h
+  ../../csrc/cuda/nms_iou.cu
   ../../csrc/cuda/utils.h
   ../../csrc/engine.h
   ../../csrc/engine.cpp
