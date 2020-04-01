@@ -1,5 +1,19 @@
 # NVIDIA ODTK change log
 
+## Version 0.2.2 -- 2020-04-01
+
+### Added
+* Rotated bounding box detections models can now be exported to ONNX and TensorRT using `odtk export model.pth model.plan --rotated-bbox`
+* The `--rotated-bbox` flag is automatically applied when running `odtk infer` or `odtk export` _on a model trained with ODTK version 0.2.2 or later_. 
+
+### Changed
+
+* Improvements to the rotated IoU calculations.
+
+### Limitations
+
+* The C++ API cannot currently infer rotated bounding box models.
+
 ## Version 0.2.1 -- 2020-03-18
 
 ### Added

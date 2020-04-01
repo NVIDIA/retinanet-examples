@@ -42,7 +42,7 @@ public:
 
     // Create engine from serialized onnx model
     Engine(const char *onnx_model, size_t onnx_size, size_t batch, string precision,
-        float score_thresh, int top_n, const vector<vector<float>>& anchors,
+        float score_thresh, int top_n, const vector<vector<float>>& anchors, bool rotated,
         float nms_thresh, int detections_per_im, const vector<string>& calibration_files,
         string model_name, string calibration_table, bool verbose, size_t workspace_size=(1ULL << 30));
 
@@ -65,7 +65,7 @@ public:
 
     // Get stride
     int getStride();
-
+    
 private:
     IRuntime *_runtime = nullptr;
     ICudaEngine *_engine = nullptr;

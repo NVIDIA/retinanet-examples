@@ -10,7 +10,7 @@ import numpy as np
 
 from .data import DataIterator, RotatedDataIterator
 from .dali import DaliDataIterator
-from .model import Model, ModelRotated
+from .model import Model
 from .utils import Profiler, rotate_box
 
 
@@ -18,8 +18,7 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
           annotations=None, use_dali=True, is_validation=False, verbose=True, rotated_bbox=False):
     'Run inference on images from path'
 
-    backend = 'pytorch' if isinstance(model, Model) or isinstance(model, DDP) or isinstance(model,
-                                                                                            ModelRotated) else 'tensorrt'
+    backend = 'pytorch' if isinstance(model, Model) or isinstance(model, DDP) else 'tensorrt'
 
     # Set batch_size = 1 batch/GPU for EXPLICIT_BATCH compatibility in TRT
     if backend is 'tensorrt':
@@ -76,7 +75,7 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
         for i, (data, ids, ratios) in enumerate(data_iterator):
             # Forward pass
             profiler.start('fw')
-            scores, boxes, classes = model(data)
+            scores, boxes, classes = model(data, rotated_bbox)
             profiler.stop('fw')
 
             results.append([scores, boxes, classes, ids, ratios])

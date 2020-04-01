@@ -20,9 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "nms_rotate.h"
+#include "nms_iou.h"
 #include "utils.h"
-
 
 #include <algorithm>
 #include <iostream>
@@ -39,6 +38,7 @@
 #include <thrust/system/cuda/detail/cub/device/device_radix_sort.cuh>
 #include <thrust/system/cuda/detail/cub/iterator/counting_input_iterator.cuh>
 
+constexpr int kTPB = 64;	// threads per block
 constexpr int kCorners = 4;
 constexpr int kPoints = 8;
 constexpr float padding = 10000.0f;
@@ -46,64 +46,59 @@ constexpr float padding = 10000.0f;
 namespace retinanet {
 namespace cuda {
 
-typedef __host__ __device__ struct float6
-{
-float x1, y1, x2, y2, s, c; 
-};
-
-class Vector_ {
+class Vector {
 
 public:
   __host__ __device__
-  Vector_( );					// Default constructor
+  Vector( );					// Default constructor
 
   __host__ __device__
-  ~Vector_( );					// Deconstructor
+  ~Vector( );					// Deconstructor
 
   __host__ __device__
-  Vector_( float2 const point );
+  Vector( float2 const point );
 
   float2 const p;
 
-  friend class Line_;
+  friend class Line;
 
 private:
   __host__ __device__
-  float cross( Vector_ const v ) const;
+  float cross( Vector const v ) const;
 };
 
-Vector_::Vector_( ) :
+Vector::Vector( ) :
     p( make_float2( 0.0f, 0.0f ) ) {
 }
 
-Vector_::~Vector_( ) {
+Vector::~Vector( ) {
 }
 
-Vector_::Vector_( float2 const point ) :
+Vector::Vector( float2 const point ) :
     p( point ) {
 }
 
-float Vector_::cross( Vector_ const v ) const {
+float Vector::cross( Vector const v ) const {
   return ( p.x * v.p.y - p.y * v.p.x );
 }
 
-class Line_ {
+class Line {
 
 public:
   __host__ __device__
-  Line_( );					// Default constructor
+  Line( );					// Default constructor
 
   __host__ __device__
-  ~Line_( );					// Deconstructor
+  ~Line( );					// Deconstructor
 
   __host__ __device__
-  Line_( Vector_ const v1, Vector_ const v2 );
+  Line( Vector const v1, Vector const v2 );
 
   __host__ __device__
-  float call( Vector_ const v ) const;
+  float call( Vector const v ) const;
 
   __host__ __device__
-  float2 intersection( Line_ const l ) const;
+  float2 intersection( Line const l ) const;
 
 private:
   float const a;
@@ -111,23 +106,23 @@ private:
   float const c;
 };
 
-Line_::Line_( ) :
+Line::Line( ) :
     a( 0.0f ), b( 0.0f ), c( 0.0f ) {
 }
 
-Line_::~Line_( ) {
+Line::~Line( ) {
 
 }
 
-Line_::Line_( Vector_ const v1, Vector_ const v2 ) :
+Line::Line( Vector const v1, Vector const v2 ) :
     a( v2.p.y - v1.p.y ), b( v1.p.x - v2.p.x ), c( v2.cross( v1 ) ) {
 }
 
-float Line_::call( Vector_ const v ) const {
+float Line::call( Vector const v ) const {
   return ( a * v.p.x + b * v.p.y + c );
 }
 
-float2 Line_::intersection( Line_ const l ) const {
+float2 Line::intersection( Line const l ) const {
   float w = a * l.b - b * l.a;
   return ( make_float2( ( b * l.c - c * l.b ) / w, ( c * l.a - a * l.c ) / w ) );
 }
@@ -140,6 +135,15 @@ void rotateLeft( T * array, int const & count ) {
   for ( int i = 0; i < count - 1; i++ )
     array[i] = array[i + 1];
   array[count - 1] = temp;
+}
+
+__host__ __device__ static __inline__ float2 padfloat2 
+(float2 a, float b)
+{
+float2 res;
+res.x = a.x + b;
+res.y = a.y + b;
+return res;
 }
 
 __global__ void nms_rotate_kernel(
@@ -157,12 +161,12 @@ __global__ void nms_rotate_kernel(
         int mcls = classes[max_idx];
         if (mcls == icls) {
         
-          float6 ibox = {boxes[idx].x1 + padding, boxes[idx].y1 + padding, 
-            boxes[idx].x2 + padding, boxes[idx].y2 + padding,
-            boxes[idx].s, boxes[idx].c};
-          float6 mbox = {boxes[max_idx].x1 + padding, boxes[max_idx].y1 + padding, 
-            boxes[max_idx].x2 + padding, boxes[max_idx].y2 + padding,
-            boxes[idx].s, boxes[idx].c};
+          float6 ibox = make_float6(make_float4(boxes[idx].x1 + padding, boxes[idx].y1 + padding, 
+            boxes[idx].x2 + padding, boxes[idx].y2 + padding),
+            make_float2(boxes[idx].s, boxes[idx].c));
+          float6 mbox = make_float6(make_float4(boxes[max_idx].x1 + padding, boxes[max_idx].y1 + padding, 
+            boxes[max_idx].x2 + padding, boxes[max_idx].y2 + padding),
+            make_float2(boxes[idx].s, boxes[idx].c));
         
           float2 intersection[kPoints] { -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,
             -1.0f, -1.0f, -1.0f, -1.0f, -1.0f };          
@@ -210,12 +214,12 @@ __global__ void nms_rotate_kernel(
     
             float line_values[kPoints] { };
     
-            Vector_ const r1( mrect[i] );
-            Vector_ const r2( mrect_shift[i] );
-            Line_ const line1( r1, r2 );
+            Vector const r1( mrect[i] );
+            Vector const r2( mrect_shift[i] );
+            Line const line1( r1, r2 );
     
             for ( int j = 0; j < count; j++ ) {
-              Vector_ const inter( intersection[j] );
+              Vector const inter( intersection[j] );
               line_values[j] = line1.call( inter );
             }
     
@@ -241,10 +245,10 @@ __global__ void nms_rotate_kernel(
     
               if ( ( line_values[j] * line_values_shift[j] ) <= 0 ) {
     
-                Vector_ const r3( intersection[j] );
-                Vector_ const r4( intersection_shift[j] );
+                Vector const r3( intersection[j] );
+                Vector const r4( intersection_shift[j] );
     
-                Line_ const Line( r3, r4 );
+                Line const Line( r3, r4 );
     
                 new_intersection[count] = line1.intersection( Line );
                 count++;
@@ -381,6 +385,154 @@ int nms_rotate(int batch_size,
     thrust::gather(on_stream, indices, indices + num_detections, in_classes, out_classes);
   }
   
+  return 0;
+}
+
+__global__ void iou_cuda_kernel(
+	int const numBoxes,
+    int const numAnchors,
+    float2 const * b_box_vals,
+    float2 const * a_box_vals,
+  float * iou_vals) {
+	
+	int t = blockIdx.x * blockDim.x + threadIdx.x;
+	int stride = blockDim.x * gridDim.x;
+
+	int combos = numBoxes * numAnchors;
+
+	for ( int tid = t; tid < combos; tid += stride ) {
+
+	float2 intersection[kPoints] { -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,
+			-1.0f, -1.0f, -1.0f, -1.0f, -1.0f };
+
+	float2 rect1[kPoints] { };
+	float2 rect1_shift[kPoints] { };
+
+	float2 rect2[kPoints] { };
+	float2 rect2_shift[kPoints] { };
+
+#pragma unroll
+		for ( int b = 0; b < kCorners; b++ ){
+			intersection[b] = padfloat2(b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )], padding);
+			rect1[b] = padfloat2(b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )], padding);
+			rect1_shift[b] = padfloat2(b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )], padding);
+			rect2[b] = padfloat2(a_box_vals[( tid * kCorners + b ) % ( numAnchors * kCorners )], padding);
+			rect2_shift[b] = padfloat2(a_box_vals[( tid * kCorners + b ) % ( numAnchors * kCorners )], padding);
+		}
+
+		rotateLeft( rect1_shift, 4 ); 
+		rotateLeft( rect2_shift, 4 ); 
+
+		int count = kCorners;
+
+		for ( int i = 0; i < kCorners; i++ ) {
+
+			float2 intersection_shift[kPoints] { };
+
+			for ( int k = 0; k < count; k++ )
+				intersection_shift[k] = intersection[k];
+
+			float line_values[kPoints] { };
+
+			Vector const r1( rect2[i] );
+			Vector const r2( rect2_shift[i] );
+			Line const line1( r1, r2 );
+
+			for ( int j = 0; j < count; j++ ) {
+				Vector const inter( intersection[j] );
+				line_values[j] = line1.call( inter );
+			}
+
+			float line_values_shift[kPoints] { };
+#pragma unroll
+			for ( int k = 0; k < kPoints; k++ )
+				line_values_shift[k] = line_values[k];
+
+			rotateLeft( line_values_shift, count );
+			rotateLeft( intersection_shift, count );
+
+			float2 new_intersection[kPoints] { };
+
+			int temp = count;
+			count = 0;
+
+			for ( int j = 0; j < temp; j++ ) {
+
+				if ( line_values[j] <= 0 ) {
+					new_intersection[count] = intersection[j];
+					count++;
+				}
+
+				if ( ( line_values[j] * line_values_shift[j] ) <= 0 ) {
+
+					Vector const r3( intersection[j] );
+					Vector const r4( intersection_shift[j] );
+
+					Line const Line( r3, r4 );
+
+					new_intersection[count] = line1.intersection( Line );
+					count++;
+				}
+			}
+
+			for ( int k = 0; k < count; k++ )
+				intersection[k] = new_intersection[k];
+		}
+		
+		float2 intersection_shift[kPoints] { };
+		for ( int k = 0; k < count; k++ )
+			intersection_shift[k] = intersection[k];
+		rotateLeft( intersection_shift, count );
+
+		//Intersection
+		float intersection_area = 0.0f;
+		if ( count > 2 ) {
+		for ( int k = 0; k < count; k++ )
+			intersection_area += intersection[k].x * intersection_shift[k].y - intersection[k].y * intersection_shift[k].x;
+		}
+		intersection_area = abs( intersection_area / 2.0f );
+		
+		//Union 
+		float rect1_area = 0.0f;
+		float rect2_area = 0.0f;
+
+#pragma unroll
+		for ( int k = 0; k < kCorners; k++ ) {
+			rect1_area += rect1[k].x * rect1_shift[k].y - rect1[k].y * rect1_shift[k].x;
+			rect2_area += rect2[k].x * rect2_shift[k].y - rect2[k].y * rect2_shift[k].x;
+		}
+
+		float union_area = ( abs( rect1_area ) + abs( rect2_area ) ) / 2.0f;
+		
+		float iou_val = intersection_area / ( union_area - intersection_area );
+	
+		// Write out answer
+		if ( isnan(intersection_area) && isnan(union_area) ){
+			iou_vals[tid] = 1.0f;
+		}
+		else if ( isnan(intersection_area) ) {
+			iou_vals[tid] = 0.0f;
+		}
+		else {
+			iou_vals[tid] = iou_val;
+		}
+	}
+}
+
+int iou( const void *const *inputs, void **outputs,
+  int num_boxes, int num_anchors, cudaStream_t stream ) {
+  
+  auto boxes = static_cast<const float2 *>(inputs[0]);
+  auto anchors = static_cast<const float2 *>(inputs[1]);
+  auto iou_vals = static_cast<float *>(outputs[0]);
+
+  int numSMs;
+  cudaDeviceGetAttribute( &numSMs, cudaDevAttrMultiProcessorCount, 0 );
+  int threadsPerBlock = kTPB;
+  int blocksPerGrid = numSMs * 10;
+  
+  iou_cuda_kernel<<<blocksPerGrid, threadsPerBlock, 0, stream>>>( num_anchors, num_boxes, anchors, boxes, iou_vals );
+
   return 0;
 }
 

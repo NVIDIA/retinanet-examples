@@ -1,13 +1,11 @@
 import torch
 from ._C import decode as decode_cuda
-from ._C import decode_rotate as decode_rotate_cuda
 from ._C import iou as iou_cuda
 from ._C import nms as nms_cuda
-from ._C import nms_rotate as nms_rotate_cuda
 import numpy as np
 from .utils import order_points, rotate_boxes
 
-def generate_anchors(stride, ratio_vals, scales_vals):
+def generate_anchors(stride, ratio_vals, scales_vals, angles_vals=None):
     'Generate anchors coordinates from scales/ratios'
 
     scales = torch.FloatTensor(scales_vals).repeat(len(ratio_vals), 1)
@@ -254,12 +252,16 @@ def snap_to_anchors_rotated(boxes, size, stride, anchors, num_classes, device):
             depth.view(num_anchors, 1, height, width))
 
 
-def decode(all_cls_head, all_box_head, stride=1, threshold=0.05, top_n=1000, anchors=None):
+def decode(all_cls_head, all_box_head, stride=1, threshold=0.05, top_n=1000, anchors=None, rotated=False):
     'Box Decoding and Filtering'
+
+    if rotated:
+        anchors = anchors[0]
+    num_boxes = 4 if not rotated else 6
 
     if torch.cuda.is_available():
         return decode_cuda(all_cls_head.float(), all_box_head.float(),
-                           anchors.view(-1).tolist(), stride, threshold, top_n)
+            anchors.view(-1).tolist(), stride, threshold, top_n, rotated)
 
     device = all_cls_head.device
     anchors = anchors.to(device).type(all_cls_head.type())
@@ -269,13 +271,13 @@ def decode(all_cls_head, all_box_head, stride=1, threshold=0.05, top_n=1000, anc
 
     batch_size = all_cls_head.size()[0]
     out_scores = torch.zeros((batch_size, top_n), device=device)
-    out_boxes = torch.zeros((batch_size, top_n, 4), device=device)
+    out_boxes = torch.zeros((batch_size, top_n, num_boxes), device=device)
     out_classes = torch.zeros((batch_size, top_n), device=device)
 
     # Per item in batch
     for batch in range(batch_size):
         cls_head = all_cls_head[batch, :, :, :].contiguous().view(-1)
-        box_head = all_box_head[batch, :, :, :].contiguous().view(-1, 4)
+        box_head = all_box_head[batch, :, :, :].contiguous().view(-1, num_boxes)
 
         # Keep scores over threshold
         keep = (cls_head >= threshold).nonzero().view(-1)
@@ -293,60 +295,7 @@ def decode(all_cls_head, all_box_head, stride=1, threshold=0.05, top_n=1000, anc
         x = indices % width
         y = (indices / width) % height
         a = indices / num_classes / height / width
-        box_head = box_head.view(num_anchors, 4, height, width)
-        boxes = box_head[a, :, y, x]
-
-        if anchors is not None:
-            grid = torch.stack([x, y, x, y], 1).type(all_cls_head.type()) * stride + anchors[a, :]
-            boxes = delta2box(boxes, grid, [width, height], stride)
-
-        out_scores[batch, :scores.size()[0]] = scores
-        out_boxes[batch, :boxes.size()[0], :] = boxes
-        out_classes[batch, :classes.size()[0]] = classes
-
-    return out_scores, out_boxes, out_classes
-
-
-def decode_rotated(all_cls_head, all_box_head, stride=1, threshold=0.05, top_n=1000, anchors=None):
-    'Box Decoding and Filtering'
-
-    if torch.cuda.is_available():
-        return decode_rotate_cuda(all_cls_head.float(), all_box_head.float(),
-                                  anchors[0].view(-1).tolist(), stride, threshold, top_n)
-
-    device = all_cls_head.device
-    anchors = anchors[0].to(device).type(all_cls_head.type())
-    num_anchors = anchors.size()[0] if anchors is not None else 1
-    num_classes = all_cls_head.size()[1] // num_anchors
-    height, width = all_cls_head.size()[-2:]
-
-    batch_size = all_cls_head.size()[0]
-    out_scores = torch.zeros((batch_size, top_n), device=device)
-    out_boxes = torch.zeros((batch_size, top_n, 6), device=device)
-    out_classes = torch.zeros((batch_size, top_n), device=device)
-
-    # Per item in batch
-    for batch in range(batch_size):
-        cls_head = all_cls_head[batch, :, :, :].contiguous().view(-1)
-        box_head = all_box_head[batch, :, :, :].contiguous().view(-1, 6)
-
-        # Keep scores over threshold
-        keep = (cls_head >= threshold).nonzero().view(-1)
-        if keep.nelement() == 0:
-            continue
-
-        # Gather top elements
-        scores = torch.index_select(cls_head, 0, keep)
-        scores, indices = torch.topk(scores, min(top_n, keep.size()[0]), dim=0)
-        indices = torch.index_select(keep, 0, indices).view(-1)
-        classes = (indices / width / height) % num_classes
-        classes = classes.type(all_cls_head.type())
-
-        # Infer kept bboxes
-        x = indices % width
-        y = (indices / width) % height
-        a = indices / num_classes / height / width
-        box_head = box_head.view(num_anchors, 6, height, width)
+        box_head = box_head.view(num_anchors, num_boxes, height, width)
         boxes = box_head[a, :, y, x]
 
         if anchors is not None:
@@ -364,8 +313,8 @@ def nms(all_scores, all_boxes, all_classes, nms=0.5, ndetections=100):
     'Non Maximum Suppression'
 
     if torch.cuda.is_available():
-        return nms_cuda(
-            all_scores.float(), all_boxes.float(), all_classes.float(), nms, ndetections)
+        return nms_cuda(all_scores.float(), all_boxes.float(), all_classes.float(), 
+            nms, ndetections, False)
 
     device = all_scores.device
     batch_size = all_scores.size()[0]
@@ -422,8 +371,8 @@ def nms_rotated(all_scores, all_boxes, all_classes, nms=0.5, ndetections=100):
     'Non Maximum Suppression'
 
     if torch.cuda.is_available():
-        return nms_rotate_cuda(
-            all_scores.float(), all_boxes.float(), all_classes.float(), nms, ndetections)
+        return nms_cuda(all_scores.float(), all_boxes.float(), all_classes.float(), 
+            nms, ndetections, True)
 
     device = all_scores.device
     batch_size = all_scores.size()[0]
