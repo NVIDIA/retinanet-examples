@@ -36,7 +36,6 @@
 #include <thrust/system/cuda/detail/cub/device/device_radix_sort.cuh>
 #include <thrust/system/cuda/detail/cub/iterator/counting_input_iterator.cuh>
 
-
 namespace retinanet {
 namespace cuda {
 
@@ -153,7 +152,6 @@ int decode_rotate(int batch_size,
           float pred_h = exp(box.y2) * h;
           float pred_sin = box.s;
           float pred_cos = box.c;
-
 
           box = make_float6(
             make_float4(
