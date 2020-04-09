@@ -17,7 +17,7 @@ class Model(nn.Module):
 
     def __init__(self, backbones='ResNet50FPN', classes=80, 
                 ratios=[1.0, 2.0, 0.5], scales=[4 * 2 ** (i / 3) for i in range(3)],
-                angles=None, rotated_bbox=False, config={}):
+                angles=None, rotated_bbox=False, foreground_iou=[0.4, 0.5], config={}):
         super().__init__()
 
         if not isinstance(backbones, list):
@@ -27,6 +27,7 @@ class Model(nn.Module):
         self.name = 'RetinaNet'
         self.exporting = False
         self.rotated_bbox = rotated_bbox
+        self.foreground_iou = foreground_iou
 
         self.ratios = ratios
         self.scales = scales
@@ -124,7 +125,7 @@ class Model(nn.Module):
         box_heads = [self.box_head(t) for t in features]
 
         if self.training:
-            return self._compute_loss(x, cls_heads, box_heads, targets.float())
+            return self._compute_loss(x, cls_heads, box_heads, targets.float(), self.foreground_iou)
 
         cls_heads = [cls_head.sigmoid() for cls_head in cls_heads]
 
@@ -153,7 +154,7 @@ class Model(nn.Module):
         decoded = [torch.cat(tensors, 1) for tensors in zip(*decoded)]
         return nms(*decoded, self.nms, self.detections)
 
-    def _extract_targets(self, targets, stride, size):
+    def _extract_targets(self, targets, stride, size, foreground_iou):
         global generate_anchors, snap_to_anchors
         if self.rotated_bbox:
             generate_anchors = generate_anchors_rotated
@@ -168,17 +169,17 @@ class Model(nn.Module):
             if not self.rotated_bbox:
                 anchors = anchors.to(targets.device)
             snapped = snap_to_anchors(target, [s * stride for s in size[::-1]], stride, 
-                                    anchors, self.classes, targets.device)
+                                    anchors, self.classes, targets.device, foreground_iou)
             for l, s in zip((cls_target, box_target, depth), snapped): l.append(s)
         return torch.stack(cls_target), torch.stack(box_target), torch.stack(depth)
 
-    def _compute_loss(self, x, cls_heads, box_heads, targets):
+    def _compute_loss(self, x, cls_heads, box_heads, targets, foreground_iou):
         cls_losses, box_losses, fg_targets = [], [], []
         for cls_head, box_head in zip(cls_heads, box_heads):
             size = cls_head.shape[-2:]
             stride = x.shape[-1] / cls_head.shape[-1]
 
-            cls_target, box_target, depth = self._extract_targets(targets, stride, size)
+            cls_target, box_target, depth = self._extract_targets(targets, stride, size, foreground_iou)
             fg_targets.append((depth > 0).sum().float().clamp(min=1))
 
             cls_head = cls_head.view_as(cls_target).float()

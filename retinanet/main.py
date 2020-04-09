@@ -70,6 +70,8 @@ def parse(args):
                               default=0.0001)
     parser_train.add_argument('--rotated-bbox', help='detect rotated bounding boxes [x, y, w, h, theta]',
                               action='store_true')
+    parser_train.add_argument('--foreground-iou', metavar='value value', type=float, nargs=2,
+                              help='anchor/bbox overlap threshold', default=[0.4, 0.5])
 
     parser_infer = subparsers.add_parser('infer', help='run inference')
     parser_infer.add_argument('model', type=str, help='path to model')
@@ -120,7 +122,8 @@ def load_model(args, verbose=False):
 
     if args.command == 'train' and (not os.path.exists(args.model) or args.override):
         if verbose: print('Initializing model...')
-        model = Model(backbones=args.backbone, classes=args.classes, rotated_bbox=args.rotated_bbox)
+        model = Model(backbones=args.backbone, classes=args.classes, rotated_bbox=args.rotated_bbox,
+                      foreground_iou=args.foreground_iou)
         model.initialize(args.fine_tune)
         if verbose: print(model)
 
