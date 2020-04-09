@@ -1,9 +1,12 @@
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import resnet as vrn
+from torchvision.models import mobilenet as vmn
 
 from .resnet import ResNet
-from .utils import register, register_torchvision_030
+from .mobilenet import MobileNet
+from .utils import register
+
 
 class FPN(nn.Module):
     'Feature Pyramid Network - https://arxiv.org/abs/1612.03144'
@@ -14,8 +17,11 @@ class FPN(nn.Module):
         self.stride = 128
         self.features = features
 
-        is_light = features.bottleneck == vrn.BasicBlock
-        channels = [128, 256, 512] if is_light else [512, 1024, 2048]
+        if isinstance(features, ResNet):
+            is_light = features.bottleneck == vrn.BasicBlock
+            channels = [128, 256, 512] if is_light else [512, 1024, 2048]
+        elif isinstance(features, MobileNet):
+            channels = [32, 96, 320]
 
         self.lateral3 = nn.Conv2d(channels[0], 256, 1)
         self.lateral4 = nn.Conv2d(channels[1], 256, 1)
@@ -74,10 +80,14 @@ def ResNet101FPN():
 def ResNet152FPN():
     return FPN(ResNet(layers=[3, 8, 36, 3], bottleneck=vrn.Bottleneck, outputs=[3, 4, 5], url=vrn.model_urls['resnet152']))
 
-@register_torchvision_030
+@register
 def ResNeXt50_32x4dFPN():
     return FPN(ResNet(layers=[3, 4, 6, 3], bottleneck=vrn.Bottleneck, outputs=[3, 4, 5], groups=32, width_per_group=4, url=vrn.model_urls['resnext50_32x4d']))
 
-@register_torchvision_030
+@register
 def ResNeXt101_32x8dFPN():
     return FPN(ResNet(layers=[3, 4, 23, 3], bottleneck=vrn.Bottleneck, outputs=[3, 4, 5], groups=32, width_per_group=8, url=vrn.model_urls['resnext101_32x8d']))
+
+@register
+def MobileNetV2FPN():
+    return FPN(MobileNet(outputs=[6, 13, 17], url=vmn.model_urls['mobilenet_v2']))

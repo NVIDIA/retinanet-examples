@@ -24,6 +24,7 @@ The detection pipeline allows the user to select a specific backbone depending o
 Backbone | Resize | mAP @[IoU=0.50:0.95] | Training Time on [DGX1v](https://www.nvidia.com/en-us/data-center/dgx-1/) | TensorRT Inference Latency FP16 on [V100](https://www.nvidia.com/en-us/data-center/tesla-v100/) | TensorRT Inference Latency INT8 on [T4](https://www.nvidia.com/en-us/data-center/tesla-t4/)
 --- | :---: | :---: | :---: | :---: | :---:
 ResNet18FPN | 800 | 0.318 | 5 hrs  | 12 ms/im | 12 ms/im
+MobileNetV2FPN | 800 | 0.333 | | 14 ms/im | 18 ms/im
 ResNet34FPN | 800 | 0.343 | 6 hrs  | 14 ms/im | 14 ms/im
 ResNet50FPN | 800 | 0.358 | 7 hrs  | 16 ms/im | 16 ms/im
 ResNet101FPN | 800 | 0.376 | 10 hrs | 20 ms/im | 20 ms/im
