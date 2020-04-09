@@ -1,5 +1,10 @@
 # NVIDIA ODTK change log
 
+## Version 0.2.3 -- 2020-04-14
+
+### Added
+* `MobileNetV2FPN` backbone
+
 ## Version 0.2.2 -- 2020-04-01
 
 ### Added
