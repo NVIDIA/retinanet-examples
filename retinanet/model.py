@@ -125,7 +125,7 @@ class Model(nn.Module):
         box_heads = [self.box_head(t) for t in features]
 
         if self.training:
-            return self._compute_loss(x, cls_heads, box_heads, targets.float(), self.foreground_iou)
+            return self._compute_loss(x, cls_heads, box_heads, targets.float())
 
         cls_heads = [cls_head.sigmoid() for cls_head in cls_heads]
 
@@ -154,7 +154,7 @@ class Model(nn.Module):
         decoded = [torch.cat(tensors, 1) for tensors in zip(*decoded)]
         return nms(*decoded, self.nms, self.detections)
 
-    def _extract_targets(self, targets, stride, size, foreground_iou):
+    def _extract_targets(self, targets, stride, size):
         global generate_anchors, snap_to_anchors
         if self.rotated_bbox:
             generate_anchors = generate_anchors_rotated
@@ -169,17 +169,17 @@ class Model(nn.Module):
             if not self.rotated_bbox:
                 anchors = anchors.to(targets.device)
             snapped = snap_to_anchors(target, [s * stride for s in size[::-1]], stride, 
-                                    anchors, self.classes, targets.device, foreground_iou)
+                                    anchors, self.classes, targets.device, self.foreground_iou)
             for l, s in zip((cls_target, box_target, depth), snapped): l.append(s)
         return torch.stack(cls_target), torch.stack(box_target), torch.stack(depth)
 
-    def _compute_loss(self, x, cls_heads, box_heads, targets, foreground_iou):
+    def _compute_loss(self, x, cls_heads, box_heads, targets):
         cls_losses, box_losses, fg_targets = [], [], []
         for cls_head, box_head in zip(cls_heads, box_heads):
             size = cls_head.shape[-2:]
             stride = x.shape[-1] / cls_head.shape[-1]
 
-            cls_target, box_target, depth = self._extract_targets(targets, stride, size, foreground_iou)
+            cls_target, box_target, depth = self._extract_targets(targets, stride, size)
             fg_targets.append((depth > 0).sum().float().clamp(min=1))
 
             cls_head = cls_head.view_as(cls_target).float()
