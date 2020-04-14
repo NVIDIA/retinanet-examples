@@ -48,6 +48,8 @@ class DecodeRotatePlugin : public IPluginV2Ext {
   size_t _num_anchors;
   size_t _num_classes;
 
+  mutable int size = -1;
+
 protected:
   void deserialize(void const* data, size_t length) {
     const char* d = static_cast<const char*>(data);
@@ -130,7 +132,6 @@ public:
   void terminate() override {}
 
   size_t getWorkspaceSize(int maxBatchSize) const override {
-    static int size = -1;
     if (size < 0) {
       size = cuda::decode_rotate(maxBatchSize, nullptr, nullptr, _height, _width, _scale,
         _num_anchors, _num_classes, _anchors, _score_thresh, _top_n,
