@@ -163,7 +163,7 @@ class Model(nn.Module):
             target = target[target[:, -1] > -1]
             if stride not in self.anchors:
                 self.anchors[stride] = generate_anchors(stride, self.ratios, self.scales, self.angles)
-            
+
             anchors = self.anchors[stride]
             if not self.rotated_bbox:
                 anchors = anchors.to(targets.device)
@@ -243,13 +243,13 @@ class Model(nn.Module):
 
     def export(self, size, batch, precision, calibration_files, calibration_table, verbose, onnx_only=False):
 
-        import torch.onnx.symbolic_opset11 as onnx_symbolic
+        import torch.onnx.symbolic_opset10 as onnx_symbolic
         def upsample_nearest2d(g, input, output_size, *args):
             # Currently, TRT 5.1/6.0/7.0 ONNX Parser does not support all ONNX ops
             # needed to support dynamic upsampling ONNX forumlation
             # Here we hardcode scale=2 as a temporary workaround
             scales = g.op("Constant", value_t=torch.tensor([1., 1., 2., 2.]))
-            return g.op("Upsample", input, scales, mode_s="nearest")
+            return g.op("Resize", input, scales, mode_s="nearest")
 
         onnx_symbolic.upsample_nearest2d = upsample_nearest2d
 
@@ -258,7 +258,7 @@ class Model(nn.Module):
         self.exporting = True
         onnx_bytes = io.BytesIO()
         zero_input = torch.zeros([1, 3, *size]).cuda()
-        extra_args = {'opset_version': 11, 'verbose': verbose}
+        extra_args = {'opset_version': 10, 'verbose': verbose}
         torch.onnx.export(self.cuda(), zero_input, onnx_bytes, **extra_args)
         self.exporting = False
 
