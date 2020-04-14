@@ -97,4 +97,4 @@ odtk infer model.pth --images /data/val --annotations /data/val_rotated.json --o
 
 ### Export
 
-Models training using rotated bounding boxes cannot currently be exported to ONNX or TensorRT engines.
+Rotated bounding box models can be exported to create TensorRT engines by using the axis aligned command with the addition of `--rotated-bbox`.

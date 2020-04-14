@@ -23,15 +23,16 @@ Bounding box annotations are described by `[x, y, w, h, theta]`.
 
 The detection pipeline allows the user to select a specific backbone depending on the latency-accuracy trade-off preferred.
 
-Network | Backbone | Resize | mAP @[IoU=0.50:0.95] | Training Time on [DGX1v](https://www.nvidia.com/en-us/data-center/dgx-1/) | TensorRT Inference Latency FP16 on [V100](https://www.nvidia.com/en-us/data-center/tesla-v100/) | TensorRT Inference Latency INT8 on [T4](https://www.nvidia.com/en-us/data-center/tesla-t4/)
---- | --- | :---: | :---: | :---: | :---: | :---:
-RetinaNet | ResNet18FPN | 800 | 0.318 | 5 hrs  | 12 ms/im | 12 ms/im
-RetinaNet | ResNet34FPN | 800 | 0.343 | 6 hrs  | 14 ms/im | 14 ms/im
-RetinaNet | ResNet50FPN | 800 | 0.358 | 7 hrs  | 16 ms/im | 16 ms/im
-RetinaNet | ResNet101FPN | 800 | 0.376 | 10 hrs | 20 ms/im | 20 ms/im
-RetinaNet | ResNet152FPN | 800 | 0.393 | 12 hrs | 25 ms/im | 24 ms/im
+ODTK **RetinaNet** model accuracy and inference latency & FPS (frames per seconds) for [COCO 2017](http://cocodataset.org/#detection-2017) (train/val) after full training schedule. Inference results include bounding boxes post-processing for a batch size of 1. Inference measured at `--resize 800` using `--with-dali` on a FP16 TensorRT engine.
 
-Training results for [COCO 2017](http://cocodataset.org/#detection-2017) (train/val) after full training schedule with default parameters. Inference results include bounding boxes post-processing for a batch size of 1.
+Backbone |  mAP @[IoU=0.50:0.95] | Training Time on [DGX1v](https://www.nvidia.com/en-us/data-center/dgx-1/) | Inference latency FP16 on [V100](https://www.nvidia.com/en-us/data-center/tesla-v100/) | Inference latency INT8 on [T4](https://www.nvidia.com/en-us/data-center/tesla-t4/)
+--- | :---: | :---: | :---: | :---:
+ResNet18FPN | 0.318 | 5 hrs  | 14 ms; 71 FPS | 18 ms; 56 FPS
+MobileNetV2FPN | 0.333 | | 14 ms; 74 FPS | 18 ms; 56 FPS
+ResNet34FPN | 0.343 | 6 hrs  | 16 ms; 64 FPS | 20 ms; 50 FPS
+ResNet50FPN | 0.358 | 7 hrs  | 18 ms; 56 FPS | 22 ms; 45 FPS
+ResNet101FPN | 0.376 | 10 hrs | 22 ms; 46 FPS | 27 ms; 37 FPS
+ResNet152FPN | 0.393 | 12 hrs | 26 ms; 38 FPS | 33 ms; 31 FPS
 
 ## Installation
 
