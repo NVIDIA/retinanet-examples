@@ -17,7 +17,7 @@ class Model(nn.Module):
 
     def __init__(self, backbones='ResNet50FPN', classes=80, 
                 ratios=[1.0, 2.0, 0.5], scales=[4 * 2 ** (i / 3) for i in range(3)],
-                angles=None, rotated_bbox=False, config={}):
+                angles=None, rotated_bbox=False, anchor_ious=[0.4, 0.5], config={}):
         super().__init__()
 
         if not isinstance(backbones, list):
@@ -27,6 +27,7 @@ class Model(nn.Module):
         self.name = 'RetinaNet'
         self.exporting = False
         self.rotated_bbox = rotated_bbox
+        self.anchor_ious = anchor_ious
 
         self.ratios = ratios
         self.scales = scales
@@ -168,7 +169,7 @@ class Model(nn.Module):
             if not self.rotated_bbox:
                 anchors = anchors.to(targets.device)
             snapped = snap_to_anchors(target, [s * stride for s in size[::-1]], stride, 
-                                    anchors, self.classes, targets.device)
+                                    anchors, self.classes, targets.device, self.anchor_ious)
             for l, s in zip((cls_target, box_target, depth), snapped): l.append(s)
         return torch.stack(cls_target), torch.stack(box_target), torch.stack(depth)
 
