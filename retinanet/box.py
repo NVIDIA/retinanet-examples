@@ -131,7 +131,7 @@ def delta2box_rotated(deltas, anchors, size, stride):
     ], 1)
 
 
-def snap_to_anchors(boxes, size, stride, anchors, num_classes, device, foreground_iou):
+def snap_to_anchors(boxes, size, stride, anchors, num_classes, device, anchor_ious):
     'Snap target boxes (x, y, w, h) to anchors'
 
     num_anchors = anchors.size()[0] if anchors is not None else 1
@@ -167,8 +167,8 @@ def snap_to_anchors(boxes, size, stride, anchors, num_classes, device, foregroun
     box_target = box_target.squeeze().contiguous()
 
     depth = torch.ones_like(overlap) * -1
-    depth[overlap < foreground_iou[0]] = 0  # background
-    depth[overlap >= foreground_iou[1]] = classes[indices][overlap >= foreground_iou[1]].squeeze() + 1  # objects
+    depth[overlap < anchor_ious[0]] = 0  # background
+    depth[overlap >= anchor_ious[1]] = classes[indices][overlap >= anchor_ious[1]].squeeze() + 1  # objects
     depth = depth.view(num_anchors, width, height).transpose(1, 2).contiguous()
 
     # Generate target classes
@@ -178,7 +178,7 @@ def snap_to_anchors(boxes, size, stride, anchors, num_classes, device, foregroun
     else:
         classes = classes[indices].long()
     classes = classes.view(-1, 1)
-    classes[overlap < foreground_iou[0]] = num_classes  # background has no class
+    classes[overlap < anchor_ious[0]] = num_classes  # background has no class
     cls_target.scatter_(1, classes, 1)
     cls_target = cls_target[:, :num_classes].view(-1, 1, width, height, num_classes)
     cls_target = cls_target.transpose(1, 4).transpose(2, 3)
@@ -189,7 +189,7 @@ def snap_to_anchors(boxes, size, stride, anchors, num_classes, device, foregroun
             depth.view(num_anchors, 1, height, width))
 
 
-def snap_to_anchors_rotated(boxes, size, stride, anchors, num_classes, device, foreground_iou):
+def snap_to_anchors_rotated(boxes, size, stride, anchors, num_classes, device, anchor_ious):
     'Snap target boxes (x, y, w, h, a) to anchors'
 
     anchors_axis, anchors_rotated = anchors
@@ -230,8 +230,8 @@ def snap_to_anchors_rotated(boxes, size, stride, anchors, num_classes, device, f
     box_target = box_target.squeeze().contiguous()
 
     depth = torch.ones_like(overlap, device=device) * -1
-    depth[overlap < foreground_iou[0]] = 0  # background
-    depth[overlap >= foreground_iou[1]] = classes[indices][overlap >= foreground_iou[1]].squeeze() + 1  # objects
+    depth[overlap < anchor_ious[0]] = 0  # background
+    depth[overlap >= anchor_ious[1]] = classes[indices][overlap >= anchor_ious[1]].squeeze() + 1  # objects
     depth = depth.view(num_anchors, width, height).transpose(1, 2).contiguous()
 
     # Generate target classes
@@ -241,7 +241,7 @@ def snap_to_anchors_rotated(boxes, size, stride, anchors, num_classes, device, f
     else:
         classes = classes[indices].long()
     classes = classes.view(-1, 1)
-    classes[overlap < foreground_iou[0]] = num_classes  # background has no class
+    classes[overlap < anchor_ious[0]] = num_classes  # background has no class
     cls_target.scatter_(1, classes, 1)
     cls_target = cls_target[:, :num_classes].view(-1, 1, width, height, num_classes)
     cls_target = cls_target.transpose(1, 4).transpose(2, 3)
