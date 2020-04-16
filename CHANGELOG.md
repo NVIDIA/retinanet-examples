@@ -1,5 +1,13 @@
 # NVIDIA ODTK change log
 
+## Version 0.2.4 -- 2020-04-20
+
+### Added
+* `--anchor-ious` option to `odtk train`.
+  * This parameter allows you to adjust the background and foreground anchor IoU threshold. The default values are `[0.4, 0.5].` 
+  * Example `--anchor-ious 0.3 0.5`. This would mean that any anchor with an IoU of less than 0.3 is assigned to background, 
+  and that any anchor with an IoU of greater than 0.5 is assigned to the foreground object, which is atmost one.
+
 ## Version 0.2.3 -- 2020-04-14
 
 ### Added
