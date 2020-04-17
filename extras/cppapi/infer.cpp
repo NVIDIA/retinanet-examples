@@ -17,10 +17,6 @@ using namespace std;
 using namespace cv;
 
 int main(int argc, char *argv[]) {
-	if (argc != 3) {
-		cerr << "Usage: " << argv[0] << " engine.plan image.jpg" << endl;
-		return 1;
-	}
 
 	cout << "Loading engine..." << endl;
 	auto engine = retinanet::Engine(argv[1]);
@@ -106,7 +102,9 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Write image
-	imwrite("detections.png", image);
-
+	string out_file = argc == 4 ? string(argv[3]) : "detections.png";
+	cout << "Saving result to " << out_file << endl;
+	imwrite(out_file, image);
+	
 	return 0;
 }
