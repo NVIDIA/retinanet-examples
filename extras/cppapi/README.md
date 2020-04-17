@@ -47,7 +47,7 @@ export{.exe} model.onnx engine.plan INT8CalibrationTable
 
 Run a test inference:
 ```bash
-infer{.exe} engine.plan image.jpg
+infer{.exe} engine.plan image.jpg result.png
 ```
 
 Note: make sure the TensorRT, CuDNN and OpenCV libraries are available in your environment and path.

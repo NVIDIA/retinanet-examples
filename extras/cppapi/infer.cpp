@@ -17,8 +17,8 @@ using namespace std;
 using namespace cv;
 
 int main(int argc, char *argv[]) {
-	if (argc != 3) {
-		cerr << "Usage: " << argv[0] << " engine.plan image.jpg" << endl;
+	if (argc != 4) {
+		cerr << "Usage: " << argv[0] << " engine.plan image.jpg result.png" << endl;
 		return 1;
 	}
 
@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Write image
-	imwrite("detections.png", image);
+	imwrite(argv[3], image);
 
 	return 0;
 }
