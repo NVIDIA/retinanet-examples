@@ -280,3 +280,15 @@ class Model(nn.Module):
         return Engine(onnx_bytes.getvalue(), len(onnx_bytes.getvalue()), batch, precision,
                       self.threshold, self.top_n, anchors, self.rotated_bbox, self.nms, self.detections, 
                       calibration_files, model_name, calibration_table, verbose)
+
+    def export_anchors(self, output_file):
+        generate_anchor_op = generate_anchors_rotated if self.rotated_bbox else generate_anchors
+
+        anchors_per_stride = [
+            generate_anchors(stride, self.ratios, self.scales, self.angles).view(-1).tolist() 
+            for stride in self.strides
+        ]
+        with open(output_file, "w") as f:
+            f.writelines(anchors_per_stride)
+        
+        return anchors_per_stride
