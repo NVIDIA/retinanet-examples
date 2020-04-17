@@ -70,9 +70,10 @@ def parse(args):
                               default=0.0001)
     parser_train.add_argument('--rotated-bbox', help='detect rotated bounding boxes [x, y, w, h, theta]',
                               action='store_true')
-    parser_train.add_argument('--anchor-ious', metavar='value value', type=float, nargs=2,
-                              help='anchor/bbox overlap threshold', default=[0.4, 0.5])
-
+    parser_train.add_argument('--anchor-scales', metavar='N', type=float, nargs="+",
+                              help='anchor scales per level', default=[4 * 2 ** (i / 3) for i in range(3)]])
+    parser_train.add_argument('--anchor-ratios', metavar='value value', type=float, nargs="+",
+                              help='anchor ratios per level', default=[1.0, 2.0, 0.5])
     parser_infer = subparsers.add_parser('infer', help='run inference')
     parser_infer.add_argument('model', type=str, help='path to model')
     parser_infer.add_argument('--images', metavar='path', type=str, help='path to images', default='.')
@@ -122,8 +123,9 @@ def load_model(args, verbose=False):
 
     if args.command == 'train' and (not os.path.exists(args.model) or args.override):
         if verbose: print('Initializing model...')
-        model = Model(backbones=args.backbone, classes=args.classes, rotated_bbox=args.rotated_bbox,
-                      anchor_ious=args.anchor_ious)
+        model = Model(
+            backbones=args.backbone, classes=args.classes, rotated_bbox=args.rotated_bbox,
+            anchor_scales=args.anchor_scales, anchor_ratios=args.anchor_ratios, anchor_ious=args.anchor_ious)
         model.initialize(args.fine_tune)
         if verbose: print(model)
 
@@ -219,6 +221,8 @@ def worker(rank, args, world, model, state):
                 out.write(exported)
         else:
             exported.save(args.export)
+        
+        
 
 
 def main(args=None):
