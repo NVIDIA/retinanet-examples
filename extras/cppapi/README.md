@@ -45,7 +45,12 @@ You can also export the ONNX core model to an INT8 TensorRT engine if you have a
 export{.exe} model.onnx engine.plan INT8CalibrationTable
 ```
 
-Run a test inference:
+Run a test inference (result will be saved to "detections.png"):
+```bash
+infer{.exe} engine.plan image.jpg
+```
+
+You can also indicate the path where result will be saved to:
 ```bash
 infer{.exe} engine.plan image.jpg result.png
 ```
