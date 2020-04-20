@@ -215,6 +215,7 @@ class Model(nn.Module):
                 checkpoint[key] = state[key]
 
         torch.save(checkpoint, state['path'])
+        self.save_anchors(os.path.splitext(state['path'])[0] + "_anchors.txt")
 
     @classmethod
     def load(cls, filename, rotated_bbox=False):
@@ -268,27 +269,15 @@ class Model(nn.Module):
 
         # Build TensorRT engine
         model_name = '_'.join([k for k, _ in self.backbones.items()])
-        anchors = []
-        if not self.rotated_bbox:
-            anchors = [generate_anchors(stride, self.ratios, self.scales, 
-                    self.angles).view(-1).tolist() for stride in self.strides]
-        else:
-            anchors = [generate_anchors_rotated(stride, self.ratios, self.scales, 
-                    self.angles)[0].view(-1).tolist() for stride in self.strides]
+        anchors = [self.anchors[stride] for stride in self.strides]
         # Set batch_size = 1 batch/GPU for EXPLICIT_BATCH compatibility in TRT
         batch = 1
         return Engine(onnx_bytes.getvalue(), len(onnx_bytes.getvalue()), batch, precision,
                       self.threshold, self.top_n, anchors, self.rotated_bbox, self.nms, self.detections, 
                       calibration_files, model_name, calibration_table, verbose)
 
-    def export_anchors(self, output_file):
-        generate_anchor_op = generate_anchors_rotated if self.rotated_bbox else generate_anchors
-
-        anchors_per_stride = [
-            generate_anchors(stride, self.ratios, self.scales, self.angles).view(-1).tolist() 
-            for stride in self.strides
-        ]
+    def save_anchors(self, output_file):
         with open(output_file, "w") as f:
-            f.writelines(anchors_per_stride)
+            f.writelines([self.anchors[stride] for stride in self.strides])
         
         return anchors_per_stride
