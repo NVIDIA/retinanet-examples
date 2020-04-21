@@ -58,6 +58,8 @@ def parse(args):
                               help='number of iterations between each validation', default=8000)
     parser_train.add_argument('--with-dali', help='use dali for data loading', action='store_true')
     parser_train.add_argument('--augment-rotate', help='use four-fold rotational augmentation', action='store_true')
+    parser_train.add_argument('--augment-free-rotate', type=float, metavar='value value', nargs=2, default=[0, 0],
+                              help='rotate images by an arbitrary angle, between min and max (in degrees)')
     parser_train.add_argument('--augment-brightness', metavar='value', type=float,
                               help='adjust the brightness of the image.', default=0.002)
     parser_train.add_argument('--augment-contrast', metavar='value', type=float,
@@ -72,6 +74,8 @@ def parse(args):
                               action='store_true')
     parser_train.add_argument('--anchor-ious', metavar='value value', type=float, nargs=2,
                               help='anchor/bbox overlap threshold', default=[0.4, 0.5])
+    parser_train.add_argument('--absolute-angle', help='regress absolute angle (rather than -45 to 45 degrees.',
+                              action='store_true')
 
     parser_infer = subparsers.add_parser('infer', help='run inference')
     parser_infer.add_argument('model', type=str, help='path to model')
@@ -173,7 +177,7 @@ def worker(rank, args, world, model, state):
                     rotate_augment=args.augment_rotate,
                     augment_brightness=args.augment_brightness, augment_contrast=args.augment_contrast,
                     augment_hue=args.augment_hue, augment_saturation=args.augment_saturation,
-                    regularization_l2=args.regularization_l2, rotated_bbox=args.rotated_bbox)
+                    regularization_l2=args.regularization_l2, rotated_bbox=args.rotated_bbox, absolute_angle=args.absolute_angles)
 
     elif args.command == 'infer':
         if model is None:
