@@ -277,7 +277,5 @@ class Model(nn.Module):
                       calibration_files, model_name, calibration_table, verbose)
 
     def save_anchors(self, output_file):
-        with open(output_file, "w") as f:
-            f.writelines([self.anchors[stride] for stride in self.strides])
-        
-        return anchors_per_stride
+        np.savetxt(
+            output_file, [self.anchors[stride] for stride in self.strides], fmt='%1.1f')
