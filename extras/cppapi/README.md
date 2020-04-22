@@ -53,8 +53,6 @@ export{.exe} model.onnx engine.plan model_anchors.txt
 export{.exe} model.onnx engine.plan INT8CalibrationTable model_anchors.txt
 ```
 
-Run a test inference (result will be saved to "detections.png"):
-
 Run a test inference (default output if none provided: "detections.png"):
 ```bash
 infer{.exe} engine.plan image.jpg [<OUTPUT>.png]
