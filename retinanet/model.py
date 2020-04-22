@@ -268,9 +268,18 @@ class Model(nn.Module):
 
         # Build TensorRT engine
         model_name = '_'.join([k for k, _ in self.backbones.items()])
-        anchors = [self.anchors[stride][0].view(-1).tolist() for stride in self.strides]
+        anchors = self.get_all_anchors()
         # Set batch_size = 1 batch/GPU for EXPLICIT_BATCH compatibility in TRT
         batch = 1
         return Engine(onnx_bytes.getvalue(), len(onnx_bytes.getvalue()), batch, precision,
                       self.threshold, self.top_n, anchors, self.rotated_bbox, self.nms, self.detections, 
                       calibration_files, model_name, calibration_table, verbose)
+
+    def get_all_anchors(self):
+        if not self.rotated_bbox:
+            anchors = [generate_anchors(stride, self.ratios, self.scales, 
+                    self.angles).view(-1).tolist() for stride in self.strides]
+        else:
+            anchors = [generate_anchors_rotated(stride, self.ratios, self.scales, 
+                    self.angles)[0].view(-1).tolist() for stride in self.strides]
+        return anchors

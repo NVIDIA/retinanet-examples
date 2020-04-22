@@ -222,9 +222,7 @@ def worker(rank, args, world, model, state):
         exported = model.export(input_size, args.batch, precision, calibration_files, args.calibration_table,
                                 args.verbose, onnx_only=onnx_only)
 
-        np.savetxt(
-            os.path.splitext(args.export + "_anchors.txt",
-            [model.anchors[stride][0].view(-1).tolist() for stride in self.strides], fmt='%1.1f')
+        np.savetxt(os.path.splitext(args.export) + "_anchors.txt", model.get_all_anchors(), fmt='%1.1f')
 
         if onnx_only:
             with open(args.export, 'wb') as out:
