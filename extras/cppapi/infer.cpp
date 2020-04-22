@@ -18,6 +18,11 @@ using namespace cv;
 
 int main(int argc, char *argv[]) {
 
+	if (argc<3 || argc>4) {
+		cerr << "Usage: " << argv[0] << " engine.plan image.jpg [<OUTPUT>.png]" << endl;
+		return 1;
+	}
+
 	cout << "Loading engine..." << endl;
 	auto engine = retinanet::Engine(argv[1]);
 

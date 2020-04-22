@@ -45,7 +45,8 @@ You can also export the ONNX core model to an INT8 TensorRT engine if you have a
 export{.exe} model.onnx engine.plan INT8CalibrationTable
 ```
 
-If you have trained your model with a custom anchor configuration, you can use the `_anchors.txt` file generated during training:
+If you have trained your model with a custom anchor configuration, you can use the `{model}_anchors.txt` file generated during training:
+
 ```bash
 export{.exe} model.onnx engine.plan model_anchors.txt
 # It also works for INT8
@@ -53,8 +54,10 @@ export{.exe} model.onnx engine.plan INT8CalibrationTable model_anchors.txt
 ```
 
 Run a test inference (result will be saved to "detections.png"):
+
+Run a test inference (default output if none provided: "detections.png"):
 ```bash
-infer{.exe} engine.plan image.jpg
+infer{.exe} engine.plan image.jpg [<OUTPUT>.png]
 ```
 
 You can also indicate the path where result will be saved to:
