@@ -93,19 +93,22 @@ If using the `--rotated-bbox` flag for rotated detections, add an additional flo
         "bbox" : [x, y, w, h, theta]    # all floats, where theta is measured in radians anti-clockwise from the x-axis.
         "segmentation" : [[x1, y1], [x2, y2], [x3, y3], [x4, y4]]
                                         # Required for validation scores.
-``` 
+```
 
 ### Anchors
 
-As with all single shot detectors, the anchor boxes may need to be adjusted to suit your dataset. You may need to adjust the anchors in `model_rotated.py`
+As with all single shot detectors, the anchor boxes may need to be adjusted to suit your dataset. You may need to adjust the anchor configuration using the `anchor-ratios`, `anchor-scales`, `anchor-angles` and/or `anchor-ious` arguments for training.
 
 The default anchors are:
 
 ```python
 self.ratios = [0.5, 1.0, 2.0]
 self.scales = [4 * 2**(i/3) for i in range(3)]
-self.angles = [-np.pi/6, 0, np.pi/6] 
+self.angles = [-np.pi/6, 0, np.pi/6]
 ```
+
+If you customize any of this and you use the Python API for exporting, your model will correctly incorporate this customizations.
+If you use the C++ API, you have to use the generated `{model}_anchors.txt` file as argument for the `export` executable.
 
 ### Training
 
