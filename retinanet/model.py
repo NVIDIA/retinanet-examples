@@ -261,8 +261,6 @@ class Model(nn.Module):
         zero_input = torch.zeros([1, 3, *size]).cuda()
         extra_args = {'opset_version': 10, 'verbose': verbose}
         torch.onnx.export(self.cuda(), zero_input, onnx_bytes, **extra_args)
-        anchors = [self.anchors[stride] for stride in self.strides]
-        np.savetxt(output_file, anchors, fmt='%1.1f')
         self.exporting = False
 
         if onnx_only:
@@ -270,6 +268,7 @@ class Model(nn.Module):
 
         # Build TensorRT engine
         model_name = '_'.join([k for k, _ in self.backbones.items()])
+        anchors = [self.anchors[stride] for stride in self.strides]
         # Set batch_size = 1 batch/GPU for EXPLICIT_BATCH compatibility in TRT
         batch = 1
         return Engine(onnx_bytes.getvalue(), len(onnx_bytes.getvalue()), batch, precision,
