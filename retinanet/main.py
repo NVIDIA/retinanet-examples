@@ -224,7 +224,7 @@ def worker(rank, args, world, model, state):
 
         np.savetxt(
             os.path.splitext(args.export + "_anchors.txt",
-            [model.anchors[stride] for stride in self.strides], fmt='%1.1f')
+            [model.anchors[stride][0].view(-1).tolist() for stride in self.strides], fmt='%1.1f')
 
         if onnx_only:
             with open(args.export, 'wb') as out:

@@ -268,7 +268,7 @@ class Model(nn.Module):
 
         # Build TensorRT engine
         model_name = '_'.join([k for k, _ in self.backbones.items()])
-        anchors = [self.anchors[stride] for stride in self.strides]
+        anchors = [self.anchors[stride][0].view(-1).tolist() for stride in self.strides]
         # Set batch_size = 1 batch/GPU for EXPLICIT_BATCH compatibility in TRT
         batch = 1
         return Engine(onnx_bytes.getvalue(), len(onnx_bytes.getvalue()), batch, precision,
