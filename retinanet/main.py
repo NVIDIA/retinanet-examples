@@ -231,8 +231,6 @@ def worker(rank, args, world, model, state):
                 out.write(exported)
         else:
             exported.save(args.export)
-        
-        
 
 
 def main(args=None):
