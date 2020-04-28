@@ -16,7 +16,8 @@ from .infer import infer
 def train(model, state, path, annotations, val_path, val_annotations, resize, max_size, jitter, batch_size, iterations,
           val_iterations, mixed_precision, lr, warmup, milestones, gamma, is_master=True, world=1, use_dali=True,
           verbose=True, metrics_url=None, logdir=None, rotate_augment=False, augment_brightness=0.0,
-          augment_contrast=0.0, augment_hue=0.0, augment_saturation=0.0, regularization_l2=0.0001, rotated_bbox=False):
+          augment_contrast=0.0, augment_hue=0.0, augment_saturation=0.0, regularization_l2=0.0001, rotated_bbox=False,
+          absolute_angle=False):
     'Train the model on the given dataset'
 
     # Prepare model
@@ -63,7 +64,8 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
         data_iterator = (DaliDataIterator if use_dali else DataIterator)(
             path, jitter, max_size, batch_size, stride,
             world, annotations, training=True, rotate_augment=rotate_augment, augment_brightness=augment_brightness,
-            augment_contrast=augment_contrast, augment_hue=augment_hue, augment_saturation=augment_saturation)
+            augment_contrast=augment_contrast, augment_hue=augment_hue, augment_saturation=augment_saturation,
+            absolute_angle=absolute_angle)
     if verbose: print(data_iterator)
 
     if verbose:
