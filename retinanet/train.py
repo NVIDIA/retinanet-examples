@@ -59,13 +59,12 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
                                             world, annotations, training=True, rotate_augment=rotate_augment,
                                             augment_brightness=augment_brightness,
                                             augment_contrast=augment_contrast, augment_hue=augment_hue,
-                                            augment_saturation=augment_saturation)
+                                            augment_saturation=augment_saturation, absolute_angle=absolute_angle)
     else:
         data_iterator = (DaliDataIterator if use_dali else DataIterator)(
             path, jitter, max_size, batch_size, stride,
             world, annotations, training=True, rotate_augment=rotate_augment, augment_brightness=augment_brightness,
-            augment_contrast=augment_contrast, augment_hue=augment_hue, augment_saturation=augment_saturation,
-            absolute_angle=absolute_angle)
+            augment_contrast=augment_contrast, augment_hue=augment_hue, augment_saturation=augment_saturation)
     if verbose: print(data_iterator)
 
     if verbose:
