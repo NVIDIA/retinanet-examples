@@ -28,6 +28,7 @@ setup(
         'pycocotools @ git+https://github.com/nvidia/cocoapi.git#subdirectory=PythonAPI',
         'pillow',
         'requests',
+        'tensorboardX'
     ],
     entry_points = {'console_scripts': ['odtk=retinanet.main:main']}
 )
