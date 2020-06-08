@@ -139,7 +139,7 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string pr
     std::unique_ptr<Int8EntropyCalibrator> calib;
     if (int8) {
         builderConfig->setFlag(BuilderFlag::kINT8);
-        ImageStream stream(1, inputDims, calibration_images);
+        ImageStream stream(batch, inputDims, calibration_images);
         calib = std::unique_ptr<Int8EntropyCalibrator>(new Int8EntropyCalibrator(stream, model_name, calibration_table));
         builderConfig->setInt8Calibrator(calib.get());
     }
