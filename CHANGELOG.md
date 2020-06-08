@@ -1,5 +1,11 @@
 # NVIDIA ODTK change log
 
+## Version 0.2.5 -- 2020-06-08
+
+### Changed
+* Updated TensorRT plugins to allow for dynamic batch sizes (see https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#work_dynamic_shapes and https://docs.nvidia.com/deeplearning/tensorrt/api/c_api/classnvinfer1_1_1_i_plugin_v2_dynamic_ext.html).
+
+
 ## Version 0.2.4 -- 2020-04-20
 
 ### Added

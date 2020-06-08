@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,6 +33,9 @@
 #include "plugins/DecodeRotatePlugin.h"
 #include "plugins/NMSRotatePlugin.h"
 #include "calibrator.h"
+
+#include <stdio.h>
+#include <string>
 
 using namespace nvinfer1;
 using namespace nvonnxparser;
@@ -71,13 +74,14 @@ void Engine::_load(const string &path) {
 
 void Engine::_prepare() {
     _context = _engine->createExecutionContext();
+    _context->setOptimizationProfile(0);
     cudaStreamCreate(&_stream);
 }
 
-Engine::Engine(const string &path, bool verbose) {
+Engine::Engine(const string &engine_path, bool verbose) {
     Logger logger(verbose);
     _runtime = createInferRuntime(logger);
-    _load(path);
+    _load(engine_path);
     _prepare();
 }
 
@@ -91,7 +95,7 @@ Engine::~Engine() {
 Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string precision,
     float score_thresh, int top_n, const vector<vector<float>>& anchors, bool rotated,
     float nms_thresh, int detections_per_im, const vector<string>& calibration_images, 
-    string model_name, string calibration_table, bool verbose, size_t workspace_size) {
+    string model_name, string calibration_table, const vector<int>& dynamic_batch_opts, bool verbose, size_t workspace_size) {
 
     Logger logger(verbose);
     _runtime = createInferRuntime(logger);
@@ -100,45 +104,67 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string pr
     bool int8 = precision.compare("INT8") == 0;
 
     // Create builder
-    auto builder = createInferBuilder(logger);
-    auto builderConfig = builder->createBuilderConfig();
+    IBuilder* builder = createInferBuilder(logger); //was auto
+    const auto builderConfig = builder->createBuilderConfig();
     // Allow use of FP16 layers when running in INT8
     if(fp16 || int8) builderConfig->setFlag(BuilderFlag::kFP16);
     builderConfig->setMaxWorkspaceSize(workspace_size);
-
+    builderConfig->setFlag(BuilderFlag::kSTRICT_TYPES); //NEW
+    
     // Parse ONNX FCN
     cout << "Building " << precision << " core model..." << endl;
-    const auto flags = 1U << static_cast<uint32_t>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
+    const auto flags = 1U << static_cast<int>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH); //was uint32_t
+    
     auto network = builder->createNetworkV2(flags);
+    
     auto parser = createParser(*network, logger);
     parser->parse(onnx_model, onnx_size);
-
+    
+    
     auto input = network->getInput(0);
     auto inputDims = input->getDimensions();
+    auto profile = builder->createOptimizationProfile();
+    auto inputName = input->getName();
+    auto profileDimsmin = Dims4{dynamic_batch_opts[0], inputDims.d[1], inputDims.d[2], inputDims.d[3]};
+    auto profileDimsopt = Dims4{dynamic_batch_opts[1], inputDims.d[1], inputDims.d[2], inputDims.d[3]};
+    auto profileDimsmax = Dims4{dynamic_batch_opts[2], inputDims.d[1], inputDims.d[2], inputDims.d[3]};
+
+    profile->setDimensions(inputName, nvinfer1::OptProfileSelector::kMIN, profileDimsmin);
+    profile->setDimensions(inputName, nvinfer1::OptProfileSelector::kOPT, profileDimsopt);
+    profile->setDimensions(inputName, nvinfer1::OptProfileSelector::kMAX, profileDimsmax);
+    
+    if(profile->isValid())
+        builderConfig->addOptimizationProfile(profile);
 
     std::unique_ptr<Int8EntropyCalibrator> calib;
     if (int8) {
         builderConfig->setFlag(BuilderFlag::kINT8);
-        ImageStream stream(batch, inputDims, calibration_images);
+        ImageStream stream(1, inputDims, calibration_images);
         calib = std::unique_ptr<Int8EntropyCalibrator>(new Int8EntropyCalibrator(stream, model_name, calibration_table));
         builderConfig->setInt8Calibrator(calib.get());
     }
 
     // Add decode plugins
     cout << "Building accelerated plugins..." << endl;
+    vector<DecodePlugin> decodePlugins;
+    vector<DecodeRotatePlugin> decodeRotatePlugins;
     vector<ITensor *> scores, boxes, classes;
     auto nbOutputs = network->getNbOutputs();
+    
     for (int i = 0; i < nbOutputs / 2; i++) {
         auto classOutput = network->getOutput(i);
         auto boxOutput = network->getOutput(nbOutputs / 2 + i);
         auto outputDims = classOutput->getDimensions();
-
+    
         int scale = inputDims.d[2] / outputDims.d[2];
         auto decodePlugin = DecodePlugin(score_thresh, top_n, anchors[i], scale);
         auto decodeRotatePlugin = DecodeRotatePlugin(score_thresh, top_n, anchors[i], scale);
+        decodePlugins.push_back(decodePlugin); 
+        decodeRotatePlugins.push_back(decodeRotatePlugin);
         vector<ITensor *> inputs = {classOutput, boxOutput};
         auto layer = (!rotated) ? network->addPluginV2(inputs.data(), inputs.size(), decodePlugin) \
                     : network->addPluginV2(inputs.data(), inputs.size(), decodeRotatePlugin);
+        
         scores.push_back(layer->getOutput(0));
         boxes.push_back(layer->getOutput(1));
         classes.push_back(layer->getOutput(2));
@@ -161,14 +187,16 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string pr
     auto nmsPlugin = NMSPlugin(nms_thresh, detections_per_im);
     auto nmsRotatePlugin = NMSRotatePlugin(nms_thresh, detections_per_im);
     auto layer = (!rotated) ? network->addPluginV2(concat.data(), concat.size(), nmsPlugin) \
-                : network->addPluginV2(concat.data(), concat.size(), nmsRotatePlugin);
+                : network->addPluginV2(concat.data(), concat.size(), nmsRotatePlugin);    
+    
     vector<string> names = {"scores", "boxes", "classes"};
     for (int i = 0; i < layer->getNbOutputs(); i++) {
         auto output = layer->getOutput(i);
         network->markOutput(*output);
         output->setName(names[i].c_str());
     }
-
+    
+    
     // Build engine
     cout << "Applying optimizations and building TRT CUDA engine..." << endl;
     _engine = builder->buildEngineWithConfig(*network, *builderConfig);
@@ -189,7 +217,9 @@ void Engine::save(const string &path) {
     serialized->destroy();    
 }
 
-void Engine::infer(vector<void *> &buffers) {
+void Engine::infer(vector<void *> &buffers, int batch){
+    auto dims = _engine->getBindingDimensions(0);
+    _context->setBindingDimensions(0, Dims4(batch, dims.d[1], dims.d[2], dims.d[3]));
     _context->enqueueV2(buffers.data(), _stream, nullptr);
     cudaStreamSynchronize(_stream);
 }
@@ -200,7 +230,7 @@ vector<int> Engine::getInputSize() {
 }
 
 int Engine::getMaxBatchSize() {
-    return (_engine->getBindingDimensions(0)).d[0];
+    return _engine->getMaxBatchSize();
 }
 
 int Engine::getMaxDetections() {

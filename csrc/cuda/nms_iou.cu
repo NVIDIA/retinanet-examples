@@ -249,8 +249,9 @@ __global__ void nms_rotate_kernel(const int num_per_thread, const float threshol
   }
 }
 
-int nms_rotate(int batch_size, const void *const *inputs, void **outputs, size_t count, 
+int nms_rotate(int batch_size, const void *const *inputs, void *const *outputs, size_t count,
   int detections_per_im, float nms_thresh, void *workspace, size_t workspace_size, cudaStream_t stream ) {
+
   if ( !workspace || !workspace_size ) {
     // Return required scratch space size cub style
     workspace_size = get_size_aligned<bool>( count );    // flags
@@ -388,7 +389,7 @@ __global__ void iou_cuda_kernel(int const numBoxes, int const numAnchors,
   }
 }
 
-int iou( const void *const *inputs, void **outputs, int num_boxes, int num_anchors, cudaStream_t stream ) {
+int iou( const void *const *inputs, void *const *outputs, int num_boxes, int num_anchors, cudaStream_t stream ) {
   auto boxes    = static_cast<const float2 *>( inputs[0] );
   auto anchors  = static_cast<const float2 *>( inputs[1] );
   auto iou_vals = static_cast<float *>( outputs[0] );

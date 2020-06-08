@@ -112,6 +112,9 @@ def parse(args):
     parser_export.add_argument('--verbose', help='enable verbose logging', action='store_true')
     parser_export.add_argument('--rotated-bbox', help='inference using a rotated bounding box model',
                                action='store_true')
+    parser_export.add_argument('--dynamic-batch-opts', help='Profile batch sizes for tensorrt engine export (min, opt, max)',
+                               metavar='value value value', type=int, nargs=3, default=[1,8,16])
+
 
     return parser.parse_args(args)
 
@@ -217,7 +220,7 @@ def worker(rank, args, world, model, state):
             precision = "FP16"
 
         exported = model.export(input_size, args.batch, precision, calibration_files, args.calibration_table,
-                                args.verbose, onnx_only=onnx_only)
+                                args.verbose, args.dynamic_batch_opts, onnx_only=onnx_only)
         if onnx_only:
             with open(args.export, 'wb') as out:
                 out.write(exported)

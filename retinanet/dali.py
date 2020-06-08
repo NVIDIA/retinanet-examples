@@ -122,7 +122,7 @@ class DaliDataIterator():
                                  augment_brightness=augment_brightness,
                                  augment_contrast=augment_contrast, augment_hue=augment_hue,
                                  augment_saturation=augment_saturation)
-
+        
         self.pipe.build()
 
     def __repr__(self):

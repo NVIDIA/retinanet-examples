@@ -29,6 +29,7 @@
 
 #include <cuda_runtime.h>
 
+
 using namespace std;
 using namespace nvinfer1;
 
@@ -41,18 +42,19 @@ public:
     Engine(const string &engine_path, bool verbose=false);
 
     // Create engine from serialized onnx model
+    
     Engine(const char *onnx_model, size_t onnx_size, size_t batch, string precision,
         float score_thresh, int top_n, const vector<vector<float>>& anchors, bool rotated,
-        float nms_thresh, int detections_per_im, const vector<string>& calibration_files,
-        string model_name, string calibration_table, bool verbose, size_t workspace_size=(1ULL << 30));
-
+        float nms_thresh, int detections_per_im, const vector<string>& calibration_images,
+        string model_name, string calibration_table, const vector<int>& dynamic_batch_opts, bool verbose, size_t workspace_size=(1ULL << 30));
+    
     ~Engine();
 
     // Save model to path
     void save(const string &path);
 
     // Infer using pre-allocated GPU buffers {data, scores, boxes, classes}
-    void infer(vector<void *> &buffers);
+    void infer(vector<void *> &buffers, int batch);
 
     // Get (h, w) size of the fixed input
     vector<int> getInputSize();

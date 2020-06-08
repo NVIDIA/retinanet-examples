@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -37,7 +37,7 @@ using namespace nvinfer1;
 
 namespace retinanet {
 
-class DecodePlugin : public IPluginV2Ext {
+class DecodePlugin : public IPluginV2DynamicExt {
   float _score_thresh;
   int _top_n;
   std::vector<float> _anchors;
@@ -47,8 +47,6 @@ class DecodePlugin : public IPluginV2Ext {
   size_t _width;
   size_t _num_anchors;
   size_t _num_classes;
-
-  mutable int size = -1;
 
 protected:
   void deserialize(void const* data, size_t length) {
@@ -115,36 +113,52 @@ public:
     return 3;
   }
 
-  Dims getOutputDimensions(int index,
-                                     const Dims *inputs, int nbInputDims) override {
-    assert(nbInputDims == 2);
-    assert(index < this->getNbOutputs());
-    return Dims3(_top_n * (index == 1 ? 4 : 1), 1, 1);
+  DimsExprs getOutputDimensions(int outputIndex, const DimsExprs *inputs,
+    int nbInputs, IExprBuilder &exprBuilder) override 
+  {
+    DimsExprs output(inputs[0]);
+    output.d[1] = exprBuilder.constant(_top_n * (outputIndex == 1 ? 4 : 1));
+    output.d[2] = exprBuilder.constant(1);
+    output.d[3] = exprBuilder.constant(1);
+
+    return output;
   }
 
-  bool supportsFormat(DataType type, PluginFormat format) const override {
-    return type == DataType::kFLOAT && format == PluginFormat::kLINEAR;
+  bool supportsFormatCombination(int pos, const PluginTensorDesc *inOut, 
+    int nbInputs, int nbOutputs) override
+  {
+    assert(nbInputs == 2);
+    assert(nbOutputs == 3);
+    assert(pos < 5);
+    return inOut[pos].type == DataType::kFLOAT && inOut[pos].format == nvinfer1::PluginFormat::kLINEAR;
   }
 
   int initialize() override { return 0; }
 
   void terminate() override {}
 
-  size_t getWorkspaceSize(int maxBatchSize) const override {
+  size_t getWorkspaceSize(const PluginTensorDesc *inputs, 
+    int nbInputs, const PluginTensorDesc *outputs, int nbOutputs) const override 
+  {
+    static int size = -1;
     if (size < 0) {
-      size = cuda::decode(maxBatchSize, nullptr, nullptr, _height, _width, _scale,
+      size = cuda::decode(inputs->dims.d[0], nullptr, nullptr, _height, _width, _scale,
         _num_anchors, _num_classes, _anchors, _score_thresh, _top_n, 
         nullptr, 0, nullptr);
     }
     return size;
   }
 
-  int enqueue(int batchSize,
-              const void *const *inputs, void **outputs,
-              void *workspace, cudaStream_t stream) override {
-    return cuda::decode(batchSize, inputs, outputs, _height, _width, _scale,
+  
+  int enqueue(const PluginTensorDesc *inputDesc, 
+    const PluginTensorDesc *outputDesc, const void *const *inputs, 
+    void *const *outputs, void *workspace, cudaStream_t stream)  
+  {
+    
+    return cuda::decode(inputDesc->dims.d[0], inputs, outputs, _height, _width, _scale,
       _num_anchors, _num_classes, _anchors, _score_thresh, _top_n,
-      workspace, getWorkspaceSize(batchSize), stream);
+      workspace, getWorkspaceSize(inputDesc, 2, outputDesc, 3), stream);
+    
   }
 
   void destroy() override {
@@ -166,34 +180,27 @@ public:
     return DataType::kFLOAT;
   }
 
-  bool isOutputBroadcastAcrossBatch(int outputIndex, const bool* inputIsBroadcasted, 
-    int nbInputs) const { return false; }
 
-  bool canBroadcastInputAcrossBatch(int inputIndex) const { return false; }
-
-  void configurePlugin(const Dims* inputDims, int nbInputs, const Dims* outputDims, int nbOutputs,
-    const DataType* inputTypes, const DataType* outputTypes, const bool* inputIsBroadcast,
-    const bool* outputIsBroadcast, PluginFormat floatFormat, int maxBatchSize)
+  void configurePlugin(const DynamicPluginTensorDesc *in, int nbInputs, 
+    const DynamicPluginTensorDesc *out, int nbOutputs)
   {
-    assert(*inputTypes == nvinfer1::DataType::kFLOAT && 
-      floatFormat == nvinfer1::PluginFormat::kLINEAR);
     assert(nbInputs == 2);
     assert(nbOutputs == 3);
-    auto const& scores_dims = inputDims[0];
-    auto const& boxes_dims = inputDims[1];
-    assert(scores_dims.d[1] == boxes_dims.d[1]);
+    auto const& scores_dims = in[0].desc.dims;
+    auto const& boxes_dims = in[1].desc.dims;
     assert(scores_dims.d[2] == boxes_dims.d[2]);
-    _height = scores_dims.d[1];
-    _width = scores_dims.d[2];
-    _num_anchors = boxes_dims.d[0] / 4; 
-    _num_classes = scores_dims.d[0] / _num_anchors;
+    assert(scores_dims.d[3] == boxes_dims.d[3]);
+    _height = scores_dims.d[2];
+    _width = scores_dims.d[3];
+    _num_anchors = boxes_dims.d[1] / 4; 
+    _num_classes = scores_dims.d[1] / _num_anchors;
   }
 
-  IPluginV2Ext *clone() const override {
+  IPluginV2DynamicExt *clone() const  {
     return new DecodePlugin(_score_thresh, _top_n, _anchors, _scale, _height, _width, 
       _num_anchors, _num_classes);
   }
-
+  
 private:
   template<typename T> void write(char*& buffer, const T& val) const {
     *reinterpret_cast<T*>(buffer) = val;
@@ -222,13 +229,14 @@ public:
     return RETINANET_PLUGIN_NAMESPACE;
   }
 
-  IPluginV2 *deserializePlugin (const char *name, const void *serialData, size_t serialLength) override {
+  
+  IPluginV2DynamicExt *deserializePlugin (const char *name, const void *serialData, size_t serialLength) override {
     return new DecodePlugin(serialData, serialLength);
   }
 
   void setPluginNamespace(const char *N) override {}
   const PluginFieldCollection *getFieldNames() override { return nullptr; }
-  IPluginV2 *createPlugin (const char *name, const PluginFieldCollection *fc) override { return nullptr; }
+  IPluginV2DynamicExt *createPlugin (const char *name, const PluginFieldCollection *fc) override { return nullptr; }
 };
 
 REGISTER_TENSORRT_PLUGIN(DecodePluginCreator);

@@ -80,9 +80,9 @@ __global__ void nms_kernel(
 }
 
 int nms(int batch_size,
-        const void *const *inputs, void **outputs,
-        size_t count, int detections_per_im, float nms_thresh,
-        void *workspace, size_t workspace_size, cudaStream_t stream) {
+  const void *const *inputs, void *const *outputs,
+  size_t count, int detections_per_im, float nms_thresh,
+  void *workspace, size_t workspace_size, cudaStream_t stream) {
 
   if (!workspace || !workspace_size) {
     // Return required scratch space size cub style
@@ -116,7 +116,7 @@ int nms(int batch_size,
     auto in_scores = static_cast<const float *>(inputs[0]) + batch * count;
     auto in_boxes = static_cast<const float4 *>(inputs[1]) + batch * count;
     auto in_classes = static_cast<const float *>(inputs[2]) + batch * count;
-
+    
     auto out_scores = static_cast<float *>(outputs[0]) + batch * detections_per_im;
     auto out_boxes = static_cast<float4 *>(outputs[1]) + batch * detections_per_im;
     auto out_classes = static_cast<float *>(outputs[2]) + batch * detections_per_im;

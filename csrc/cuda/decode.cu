@@ -36,15 +36,17 @@
 #include <thrust/system/cuda/detail/cub/device/device_radix_sort.cuh>
 #include <thrust/system/cuda/detail/cub/iterator/counting_input_iterator.cuh>
 
+#include <stdio.h>
+
 namespace retinanet {
 namespace cuda {
 
 int decode(int batch_size,
-          const void *const *inputs, void **outputs,
-          size_t height, size_t width, size_t scale,
-          size_t num_anchors, size_t num_classes,
-          const std::vector<float> &anchors, float score_thresh, int top_n,
-          void *workspace, size_t workspace_size, cudaStream_t stream) {
+  const void *const *inputs, void *const *outputs,
+  size_t height, size_t width, size_t scale,
+  size_t num_anchors, size_t num_classes,
+  const std::vector<float> &anchors, float score_thresh, int top_n,
+  void *workspace, size_t workspace_size, cudaStream_t stream) {
 
   int scores_size = num_anchors * num_classes * height * width;
   
@@ -80,7 +82,9 @@ int decode(int batch_size,
   auto scores = get_next_ptr<float>(scores_size, workspace, workspace_size);
   auto scores_sorted = get_next_ptr<float>(scores_size, workspace, workspace_size);
 
+  
   for (int batch = 0; batch < batch_size; batch++) {
+  
     auto in_scores = static_cast<const float *>(inputs[0]) + batch * scores_size;
     auto in_boxes = static_cast<const float *>(inputs[1]) + batch * (scores_size / num_classes) * 4;
 
