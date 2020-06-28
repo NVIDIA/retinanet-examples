@@ -23,11 +23,11 @@ The detection pipeline allows the user to select a specific backbone depending o
 
 Backbone | Resize | mAP @[IoU=0.50:0.95] | Training Time on [DGX1v](https://www.nvidia.com/en-us/data-center/dgx-1/) | TensorRT Inference Latency FP16 on [V100](https://www.nvidia.com/en-us/data-center/tesla-v100/) | TensorRT Inference Latency INT8 on [T4](https://www.nvidia.com/en-us/data-center/tesla-t4/)
 --- | :---: | :---: | :---: | :---: | :---:
-ResNet18FPN | 800 | 0.318 | 5 hrs  | 12 ms/im | 12 ms/im
-ResNet34FPN | 800 | 0.343 | 6 hrs  | 14 ms/im | 14 ms/im
-ResNet50FPN | 800 | 0.358 | 7 hrs  | 16 ms/im | 16 ms/im
-ResNet101FPN | 800 | 0.376 | 10 hrs | 20 ms/im | 20 ms/im
-ResNet152FPN | 800 | 0.393 | 12 hrs | 25 ms/im | 24 ms/im
+[ResNet18FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/19.04/retinanet_rn18fpn.zip) | 800 | 0.318 | 5 hrs  | 12 ms/im | 12 ms/im
+[ResNet34FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/19.04/retinanet_rn34fpn.zip) | 800 | 0.343 | 6 hrs  | 14 ms/im | 14 ms/im
+[ResNet50FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/19.04/retinanet_rn50fpn.zip) | 800 | 0.358 | 7 hrs  | 16 ms/im | 16 ms/im
+[ResNet101FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/19.04/retinanet_rn101fpn.zip) | 800 | 0.376 | 10 hrs | 20 ms/im | 20 ms/im
+[ResNet152FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/19.04/retinanet_rn152fpn.zip) | 800 | 0.393 | 12 hrs | 25 ms/im | 24 ms/im
 
 Training results for [COCO 2017](http://cocodataset.org/#detection-2017) (train/val) after full training schedule with default parameters. Inference results include bounding boxes post-processing for a batch size of 1.
 
