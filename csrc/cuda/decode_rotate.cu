@@ -33,18 +33,18 @@
 #include <thrust/tabulate.h>
 #include <thrust/count.h>
 #include <thrust/find.h>
-#include <thrust/system/cuda/detail/cub/device/device_radix_sort.cuh>
-#include <thrust/system/cuda/detail/cub/iterator/counting_input_iterator.cuh>
+#include <cub/device/device_radix_sort.cuh>
+#include <cub/iterator/counting_input_iterator.cuh>
 
 namespace retinanet {
 namespace cuda {
 
 int decode_rotate(int batch_size,
-          const void *const *inputs, void **outputs,
-          size_t height, size_t width, size_t scale,
-          size_t num_anchors, size_t num_classes,
-          const std::vector<float> &anchors, float score_thresh, int top_n,
-          void *workspace, size_t workspace_size, cudaStream_t stream) {
+  const void *const *inputs, void *const *outputs,
+  size_t height, size_t width, size_t scale,
+  size_t num_anchors, size_t num_classes,
+  const std::vector<float> &anchors, float score_thresh, int top_n,
+  void *workspace, size_t workspace_size, cudaStream_t stream) {
 
   int scores_size = num_anchors * num_classes * height * width;
 
@@ -58,11 +58,11 @@ int decode_rotate(int batch_size,
     workspace_size += get_size_aligned<float>(scores_size);    // scores_sorted
 
     size_t temp_size_flag = 0;
-    thrust::cuda_cub::cub::DeviceSelect::Flagged((void *)nullptr, temp_size_flag,
-      thrust::cuda_cub::cub::CountingInputIterator<int>(scores_size),
+    cub::DeviceSelect::Flagged((void *)nullptr, temp_size_flag,
+      cub::CountingInputIterator<int>(scores_size),
       (bool *)nullptr, (int *)nullptr, (int *)nullptr, scores_size);
     size_t temp_size_sort = 0;
-    thrust::cuda_cub::cub::DeviceRadixSort::SortPairsDescending((void *)nullptr, temp_size_sort,
+    cub::DeviceRadixSort::SortPairsDescending((void *)nullptr, temp_size_sort,
       (float *)nullptr, (float *)nullptr, (int *)nullptr, (int *)nullptr, scores_size);
     workspace_size += std::max(temp_size_flag, temp_size_sort);
 
@@ -93,8 +93,7 @@ int decode_rotate(int batch_size,
       flags, thrust::placeholders::_1 > score_thresh);
 
     int *num_selected = reinterpret_cast<int *>(indices_sorted);
-    thrust::cuda_cub::cub::DeviceSelect::Flagged(workspace, workspace_size,
-      thrust::cuda_cub::cub::CountingInputIterator<int>(0),
+    cub::DeviceSelect::Flagged(workspace, workspace_size, cub::CountingInputIterator<int>(0),
       flags, indices, num_selected, scores_size, stream);
     cudaStreamSynchronize(stream);
     int num_detections = *thrust::device_pointer_cast(num_selected);
@@ -104,7 +103,7 @@ int decode_rotate(int batch_size,
     if (num_detections > top_n) {
       thrust::gather(on_stream, indices, indices + num_detections,
         in_scores, scores);
-      thrust::cuda_cub::cub::DeviceRadixSort::SortPairsDescending(workspace, workspace_size,
+      cub::DeviceRadixSort::SortPairsDescending(workspace, workspace_size,
         scores, scores_sorted, indices, indices_sorted, num_detections, 0, sizeof(*scores)*8, stream);
         indices_filtered = indices_sorted;
         num_detections = top_n;

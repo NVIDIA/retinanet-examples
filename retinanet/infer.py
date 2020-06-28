@@ -20,10 +20,6 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
 
     backend = 'pytorch' if isinstance(model, Model) or isinstance(model, DDP) else 'tensorrt'
 
-    # Set batch_size = 1 batch/GPU for EXPLICIT_BATCH compatibility in TRT
-    if backend is 'tensorrt':
-        batch_size = world
-
     stride = model.module.stride if isinstance(model, DDP) else model.stride
 
     # Create annotations if none was provided
@@ -37,14 +33,19 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
 
     # Prepare dataset
     if verbose: print('Preparing dataset...')
+    data_iterator = (DaliDataIterator if use_dali else DataIterator)(
+            path, resize, max_size, batch_size, stride,
+            world, annotations, training=False)
+    
     if rotated_bbox:
-        if use_dali: raise NotImplementedError("This repo does not currently support DALI for rotated bbox detections.")
+        if use_dali: raise NotImplementedError("This repo does not currently support DALI for rotated bbox.")
         data_iterator = RotatedDataIterator(path, resize, max_size, batch_size, stride,
                                             world, annotations, training=False)
     else:
         data_iterator = (DaliDataIterator if use_dali else DataIterator)(
             path, resize, max_size, batch_size, stride,
             world, annotations, training=False)
+    
     if verbose: print(data_iterator)
 
     # Prepare model
@@ -75,7 +76,7 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
         for i, (data, ids, ratios) in enumerate(data_iterator):
             # Forward pass
             profiler.start('fw')
-            scores, boxes, classes = model(data, rotated_bbox)
+            scores, boxes, classes = model(data, rotated_bbox) #Need to add model size (B, 3, W, H)
             profiler.stop('fw')
 
             results.append([scores, boxes, classes, ids, ratios])

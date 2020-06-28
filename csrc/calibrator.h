@@ -104,7 +104,7 @@ private:
     
 };
 
-class Int8EntropyCalibrator: public IInt8EntropyCalibrator {
+class Int8EntropyCalibrator: public IInt8EntropyCalibrator2 {
 public:
     Int8EntropyCalibrator(ImageStream& stream, const string networkName, const string calibrationCacheName, bool readCache = true)
         : _stream(stream)

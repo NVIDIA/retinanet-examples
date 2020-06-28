@@ -37,13 +37,12 @@
 #include "cuda/decode_rotate.h"
 #include "cuda/nms.h"
 #include "cuda/nms_iou.h"
-//#include "cuda/nms_rotate.h"
-//#include "cuda/iou.h"
-
+#include <stdio.h>
 
 #define CHECK_CUDA(x) AT_ASSERTM(x.type().is_cuda(), #x " must be a CUDA tensor")
 #define CHECK_CONTIGUOUS(x) AT_ASSERTM(x.is_contiguous(), #x " must be contiguous")
 #define CHECK_INPUT(x) CHECK_CUDA(x); CHECK_CONTIGUOUS(x)
+
 
 vector<at::Tensor> iou(at::Tensor boxes, at::Tensor anchors) {
 
@@ -98,6 +97,7 @@ vector<at::Tensor> decode(at::Tensor cls_head, at::Tensor box_head,
         retinanet::cuda::decode(batch, inputs.data(), outputs.data(), height, width, scale,
             num_anchors, num_classes, anchors, score_thresh, top_n,
             scratch.data_ptr(), size, at::cuda::getCurrentCUDAStream());
+    
     }
     else {
         // Create scratch buffer
@@ -110,7 +110,7 @@ vector<at::Tensor> decode(at::Tensor cls_head, at::Tensor box_head,
             num_anchors, num_classes, anchors, score_thresh, top_n,
             scratch.data_ptr(), size, at::cuda::getCurrentCUDAStream());
     }
-
+    
     return {scores, boxes, classes};
 }
 
@@ -125,7 +125,6 @@ vector<at::Tensor> nms(at::Tensor scores, at::Tensor boxes, at::Tensor classes,
     int batch = scores.size(0);
     int count = scores.size(1);
     auto options = scores.options();
-
     auto nms_scores = at::zeros({batch, detections_per_im}, scores.options());
     auto nms_boxes = at::zeros({batch, detections_per_im, num_boxes}, boxes.options());
     auto nms_classes = at::zeros({batch, detections_per_im}, classes.options());
@@ -153,6 +152,7 @@ vector<at::Tensor> nms(at::Tensor scores, at::Tensor boxes, at::Tensor classes,
         retinanet::cuda::nms_rotate(batch, inputs.data(), outputs.data(), count,
             detections_per_im, nms_thresh, scratch.data_ptr(), size, at::cuda::getCurrentCUDAStream());
     }
+    
 
     return {nms_scores, nms_boxes, nms_classes};
 }
@@ -175,15 +175,17 @@ vector<at::Tensor> infer(retinanet::Engine &engine, at::Tensor data, bool rotate
         buffers.push_back(buffer.data<float>());
     }
 
-    engine.infer(buffers);
+    engine.infer(buffers, batch);
 
     return {scores, boxes, classes};
 }
 
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     pybind11::class_<retinanet::Engine>(m, "Engine")
-        .def(pybind11::init<const char *, size_t, size_t, string, float,
-            int, const vector<vector<float>>&, bool, float, int, const vector<string>&, string, string, bool>())
+        .def(pybind11::init<const char *, size_t, const vector<int>&, size_t, string, float,
+            int, const vector<vector<float>>&, bool, float, int, const vector<string>&, 
+            string, string, bool>())
         .def("save", &retinanet::Engine::save)
         .def("infer", &retinanet::Engine::infer)
         .def_property_readonly("stride", &retinanet::Engine::getStride)

@@ -2,10 +2,12 @@
 #include <stdexcept>
 #include <fstream>
 #include <vector>
+#include <glob.h>
 
 #include "../../csrc/engine.h"
 
 #define ROTATED false // Change to true for Rotated Bounding Box export
+#define COCO_PATH "/coco/coco2017/val2017" // Path to calibration images
 
 using namespace std;
 
@@ -15,6 +17,19 @@ using namespace std;
 //
 // You can optionally provide an INT8CalibrationTable file created during RetinaNet INT8 calibration
 // to build a TensorRT engine with INT8 precision
+
+inline std::vector<std::string> glob(int batch){
+	glob_t glob_result;
+	string path = string(COCO_PATH);
+	if(path.back()!='/') path+="/";
+	glob((path+"*").c_str(), (GLOB_TILDE | GLOB_NOSORT), NULL, &glob_result);
+	vector<string> calibration_files;
+	for(int i=0; i<batch; i++){
+		calibration_files.push_back(string(glob_result.gl_pathv[i]));
+	}
+	globfree(&glob_result);
+	return calibration_files;
+}
 
 int main(int argc, char *argv[]) {
 	if (argc != 3 && argc != 4) {
@@ -39,6 +54,7 @@ int main(int argc, char *argv[]) {
 	onnxFile.close();
 
 	// Define default RetinaNet parameters to use for TRT export
+	const vector<int> dynamic_batch_opts{1, 8, 16};
 	int batch = 1;
 	float score_thresh = 0.05f;
 	int top_n = 1000;
@@ -69,9 +85,8 @@ int main(int argc, char *argv[]) {
 		};
 	}
 
-	// For now, assume we have already done calibration elsewhere 
-	// if we want to create an INT8 TensorRT engine, so no need 
-	// to provide calibration files or model name
+	// For INT8 calibration, after setting COCO_PATH on line 10:
+	// const vector<string> calibration_files = glob(dynamic_batch_opts[1]);
 	const vector<string> calibration_files;
 	string model_name = "";
 	string calibration_table = argc == 4 ? string(argv[3]) : "";
@@ -82,7 +97,7 @@ int main(int argc, char *argv[]) {
 		precision = "INT8";
 
 	cout << "Building engine..." << endl;
-	auto engine = retinanet::Engine(buffer, size, batch, precision, score_thresh, top_n,
+	auto engine = retinanet::Engine(buffer, size, dynamic_batch_opts, batch, precision, score_thresh, top_n,
 		anchors, ROTATED, nms_thresh, detections_per_im, calibration_files, model_name, calibration_table, verbose, workspace_size);
 	engine.save(string(argv[2]));
 

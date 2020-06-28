@@ -37,12 +37,11 @@ using namespace nvinfer1;
 
 namespace retinanet {
 
-class NMSRotatePlugin : public IPluginV2Ext {
+class NMSRotatePlugin : public IPluginV2DynamicExt {
   float _nms_thresh;
   int _detections_per_im;
 
   size_t _count;
-
   mutable int size = -1;
 
 protected:
@@ -95,36 +94,47 @@ public:
     return 3;
   }
 
-  Dims getOutputDimensions(int index,
-                                     const Dims *inputs, int nbInputDims) override {
-    assert(nbInputDims == 3);
-    assert(index < this->getNbOutputs());
-    return Dims3(_detections_per_im * (index == 1 ? 6 : 1), 1, 1);
+  DimsExprs getOutputDimensions(int outputIndex, const DimsExprs *inputs,
+    int nbInputs, IExprBuilder &exprBuilder) override 
+  {
+    DimsExprs output(inputs[0]);
+    output.d[1] = exprBuilder.constant(_detections_per_im * (outputIndex == 1 ? 6 : 1));
+    output.d[2] = exprBuilder.constant(1);
+    output.d[3] = exprBuilder.constant(1);
+    return output;
   }
 
-  bool supportsFormat(DataType type, PluginFormat format) const override {
-    return type == DataType::kFLOAT && format == PluginFormat::kLINEAR;
+  bool supportsFormatCombination(int pos, const PluginTensorDesc *inOut, 
+    int nbInputs, int nbOutputs) override
+  {
+    assert(nbInputs == 3);
+    assert(nbOutputs == 3);
+    assert(pos < 6);
+    return inOut[pos].type == DataType::kFLOAT && inOut[pos].format == nvinfer1::PluginFormat::kLINEAR;
   }
 
   int initialize() override { return 0; }
 
   void terminate() override {}
 
-  size_t getWorkspaceSize(int maxBatchSize) const override {
+  size_t getWorkspaceSize(const PluginTensorDesc *inputs, 
+    int nbInputs, const PluginTensorDesc *outputs, int nbOutputs) const override 
+  {
     if (size < 0) {
-      size = cuda::nms_rotate(maxBatchSize, nullptr, nullptr, _count, 
+      size = cuda::nms_rotate(inputs->dims.d[0], nullptr, nullptr, _count, 
         _detections_per_im, _nms_thresh, 
         nullptr, 0, nullptr);
     }
     return size;
   }
 
-  int enqueue(int batchSize,
-              const void *const *inputs, void **outputs,
-              void *workspace, cudaStream_t stream) override {
-    return cuda::nms_rotate(batchSize, inputs, outputs, _count, 
+  int enqueue(const PluginTensorDesc *inputDesc, 
+    const PluginTensorDesc *outputDesc, const void *const *inputs, 
+    void *const *outputs, void *workspace, cudaStream_t stream) override 
+  {
+    return cuda::nms_rotate(inputDesc->dims.d[0], inputs, outputs, _count, 
       _detections_per_im, _nms_thresh,
-      workspace, getWorkspaceSize(batchSize), stream);
+      workspace, getWorkspaceSize(inputDesc, 3, outputDesc, 3), stream);
   }
 
   void destroy() override {
@@ -135,35 +145,25 @@ public:
     return RETINANET_PLUGIN_NAMESPACE;
   }
   
-  void setPluginNamespace(const char *N) override {
-    
-  }
+  void setPluginNamespace(const char *N) override {}
 
-  // IPluginV2Ext Methods
   DataType getOutputDataType(int index, const DataType* inputTypes, int nbInputs) const
   {
     assert(index < 3);
     return DataType::kFLOAT;
   }
 
-  bool isOutputBroadcastAcrossBatch(int outputIndex, const bool* inputIsBroadcasted, 
-    int nbInputs) const { return false; }
 
-  bool canBroadcastInputAcrossBatch(int inputIndex) const { return false; }
-
-  void configurePlugin(const Dims* inputDims, int nbInputs, const Dims* outputDims, int nbOutputs,
-    const DataType* inputTypes, const DataType* outputTypes, const bool* inputIsBroadcast,
-    const bool* outputIsBroadcast, PluginFormat floatFormat, int maxBatchSize)
+  void configurePlugin(const DynamicPluginTensorDesc *in, int nbInputs, 
+    const DynamicPluginTensorDesc *out, int nbOutputs)
   {
-    assert(*inputTypes == nvinfer1::DataType::kFLOAT &&
-      floatFormat == nvinfer1::PluginFormat::kLINEAR);
     assert(nbInputs == 3);
-    assert(inputDims[0].d[0] == inputDims[2].d[0]);
-    assert(inputDims[1].d[0] == inputDims[2].d[0] * 6);
-    _count = inputDims[0].d[0];
+    assert(in[0].desc.dims.d[1] == in[2].desc.dims.d[1]);
+    assert(in[1].desc.dims.d[1] == in[2].desc.dims.d[1] * 6);
+    _count = in[0].desc.dims.d[1];
   }
 
-  IPluginV2Ext *clone() const override {
+  IPluginV2DynamicExt *clone() const {
     return new NMSRotatePlugin(_nms_thresh, _detections_per_im, _count);
   }
 
@@ -194,13 +194,13 @@ public:
     return RETINANET_PLUGIN_VERSION;
   }
  
-  IPluginV2 *deserializePlugin (const char *name, const void *serialData, size_t serialLength) override {
+  IPluginV2DynamicExt *deserializePlugin (const char *name, const void *serialData, size_t serialLength) override {
     return new NMSRotatePlugin(serialData, serialLength);
   }
 
   void setPluginNamespace(const char *N) override {}
   const PluginFieldCollection *getFieldNames() override { return nullptr; }
-  IPluginV2 *createPlugin (const char *name, const PluginFieldCollection *fc) override { return nullptr; }
+  IPluginV2DynamicExt *createPlugin (const char *name, const PluginFieldCollection *fc) override { return nullptr; }
 };
 
 REGISTER_TENSORRT_PLUGIN(NMSRotatePluginCreator);

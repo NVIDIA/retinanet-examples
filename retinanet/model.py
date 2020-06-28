@@ -242,7 +242,7 @@ class Model(nn.Module):
 
         return model, state
 
-    def export(self, size, batch, precision, calibration_files, calibration_table, verbose, onnx_only=False):
+    def export(self, size, dynamic_batch_opts, batch, precision, calibration_files, calibration_table, verbose, onnx_only=False):
 
         import torch.onnx.symbolic_opset10 as onnx_symbolic
         def upsample_nearest2d(g, input, output_size, *args):
@@ -259,7 +259,15 @@ class Model(nn.Module):
         self.exporting = True
         onnx_bytes = io.BytesIO()
         zero_input = torch.zeros([1, 3, *size]).cuda()
-        extra_args = {'opset_version': 10, 'verbose': verbose}
+        input_names = ['input_1']
+        output_names = ['score_1', 'score_2', 'score_3', 'score_4', 'score_5',
+                        'box_1', 'box_2', 'box_3', 'box_4', 'box_5']
+        dynamic_axes = {input_names[0]: {0:'batch'}}
+        for _, name in enumerate(output_names):
+            dynamic_axes[name] = dynamic_axes[input_names[0]]
+        extra_args = {'opset_version': 10, 'verbose': verbose,
+                      'input_names': input_names, 'output_names': output_names,
+                      'dynamic_axes': dynamic_axes} 
         torch.onnx.export(self.cuda(), zero_input, onnx_bytes, **extra_args)
         self.exporting = False
 
@@ -275,8 +283,7 @@ class Model(nn.Module):
         else:
             anchors = [generate_anchors_rotated(stride, self.ratios, self.scales, 
                     self.angles)[0].view(-1).tolist() for stride in self.strides]
-        # Set batch_size = 1 batch/GPU for EXPLICIT_BATCH compatibility in TRT
-        batch = 1
-        return Engine(onnx_bytes.getvalue(), len(onnx_bytes.getvalue()), batch, precision,
-                      self.threshold, self.top_n, anchors, self.rotated_bbox, self.nms, self.detections, 
-                      calibration_files, model_name, calibration_table, verbose)
+
+        return Engine(onnx_bytes.getvalue(), len(onnx_bytes.getvalue()), dynamic_batch_opts, batch,
+                      precision, self.threshold, self.top_n, anchors, self.rotated_bbox, self.nms, 
+                      self.detections, calibration_files, model_name, calibration_table, verbose)
