@@ -62,10 +62,10 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
 
     # Create TensorBoard writer
     if logdir is not None:
-        from tensorboardX import SummaryWriter
+        from torch.utils.tensorboard import SummaryWriter
         if is_master and verbose:
             print('Writing TensorBoard logs to: {}'.format(logdir))
-        writer = SummaryWriter(logdir=logdir)
+        writer = SummaryWriter(log_dir=logdir)
 
     profiler = Profiler(['train', 'fw', 'bw'])
     iteration = state.get('iteration', 0)
