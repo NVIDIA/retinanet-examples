@@ -18,7 +18,7 @@ using namespace std;
 // You can optionally provide an INT8CalibrationTable file created during RetinaNet INT8 calibration
 // to build a TensorRT engine with INT8 precision
 
-inline std::vector<std::string> glob(int batch){
+inline vector<string> glob(int batch){
 	glob_t glob_result;
 	string path = string(COCO_PATH);
 	if(path.back()!='/') path+="/";

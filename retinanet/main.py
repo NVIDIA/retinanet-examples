@@ -115,7 +115,6 @@ def parse(args):
     parser_export.add_argument('--dynamic-batch-opts', help='Profile batch sizes for tensorrt engine export (min, opt, max)',
                                metavar='value value value', type=int, nargs=3, default=[1,8,16])
 
-
     return parser.parse_args(args)
 
 

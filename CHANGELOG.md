@@ -2,7 +2,7 @@
 
 ## Version 0.2.5 -- 2020-06-27
 
-### Addes
+### Added
 * `--dynamic-batch-opts` option to `odtk export`.
   * This parameter allows you to provide TensorRT Optimiation Profile batch sizes for engine export (min, opt, max).
 

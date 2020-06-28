@@ -59,7 +59,7 @@ vector<at::Tensor> iou(at::Tensor boxes, at::Tensor anchors) {
     vector<void *> inputs = {boxes.data_ptr(), anchors.data_ptr()};
     vector<void *> outputs = {iou_vals.data_ptr()};
 
-    retinanet::cuda::iou(inputs.data(), outputs.data(), num_boxes, num_anchors, at::cuda::getCurrentCUDAStream() );
+    retinanet::cuda::iou(inputs.data(), outputs.data(), num_boxes, num_anchors, at::cuda::getCurrentCUDAStream());
 
     auto shape = std::vector<int64_t>{num_anchors, num_boxes};
 
@@ -184,8 +184,7 @@ vector<at::Tensor> infer(retinanet::Engine &engine, at::Tensor data, bool rotate
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     pybind11::class_<retinanet::Engine>(m, "Engine")
         .def(pybind11::init<const char *, size_t, const vector<int>&, size_t, string, float,
-            int, const vector<vector<float>>&, bool, float, int, const vector<string>&, 
-            string, string, bool>())
+            int, const vector<vector<float>>&, bool, float, int, const vector<string>&, string, string, bool>())
         .def("save", &retinanet::Engine::save)
         .def("infer", &retinanet::Engine::infer)
         .def_property_readonly("stride", &retinanet::Engine::getStride)

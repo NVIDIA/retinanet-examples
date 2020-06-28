@@ -134,9 +134,8 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, const vector<int>& dyna
 
     std::unique_ptr<Int8EntropyCalibrator> calib;
     if (int8) {
-        /* Calibration is performed using kOPT values of the profile.
-           Calibration input data size must match this profile.
-        */
+        // Calibration is performed using kOPT values of the profile.
+        // Calibration input data size must match this profile.
         builderConfig->setFlag(BuilderFlag::kINT8);
         builderConfig->setCalibrationProfile(profile);
         ImageStream stream(dynamic_batch_opts[1], inputDims, calibration_images);
