@@ -47,7 +47,7 @@ class DecodeRotatePlugin : public IPluginV2DynamicExt {
   size_t _width;
   size_t _num_anchors;
   size_t _num_classes;
-
+  mutable int size = -1;
 
 protected:
   void deserialize(void const* data, size_t length) {
@@ -143,7 +143,6 @@ public:
   size_t getWorkspaceSize(const PluginTensorDesc *inputs, 
     int nbInputs, const PluginTensorDesc *outputs, int nbOutputs) const override 
   {
-    static int size = -1;
     if (size < 0) {
       size = cuda::decode_rotate(inputs->dims.d[0], nullptr, nullptr, _height, _width, _scale,
         _num_anchors, _num_classes, _anchors, _score_thresh, _top_n, 
@@ -169,11 +168,8 @@ public:
     return RETINANET_PLUGIN_NAMESPACE;
   }
 
-  void setPluginNamespace(const char *N) override {
+  void setPluginNamespace(const char *N) override {}
 
-  }
-
-  // IPluginV2Ext Methods
   DataType getOutputDataType(int index, const DataType* inputTypes, int nbInputs) const
   {
     assert(index < 3);

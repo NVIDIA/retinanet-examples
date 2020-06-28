@@ -28,6 +28,9 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
         images = [{'id': i, 'file_name': f} for i, f in enumerate(os.listdir(path))]
         json.dump({'images': images}, open(annotations, 'w'))
 
+    # TensorRT only supports fixed input sizes, so override input size accordingly
+    if backend == 'tensorrt': max_size = max(model.input_size)
+
     # Prepare dataset
     if verbose: print('Preparing dataset...')
     data_iterator = (DaliDataIterator if use_dali else DataIterator)(

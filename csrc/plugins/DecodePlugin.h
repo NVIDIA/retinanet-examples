@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -47,6 +47,7 @@ class DecodePlugin : public IPluginV2DynamicExt {
   size_t _width;
   size_t _num_anchors;
   size_t _num_classes;
+  mutable int size = -1;
 
 protected:
   void deserialize(void const* data, size_t length) {
@@ -140,7 +141,6 @@ public:
   size_t getWorkspaceSize(const PluginTensorDesc *inputs, 
     int nbInputs, const PluginTensorDesc *outputs, int nbOutputs) const override 
   {
-    static int size = -1;
     if (size < 0) {
       size = cuda::decode(inputs->dims.d[0], nullptr, nullptr, _height, _width, _scale,
         _num_anchors, _num_classes, _anchors, _score_thresh, _top_n, 
@@ -149,7 +149,6 @@ public:
     return size;
   }
 
-  
   int enqueue(const PluginTensorDesc *inputDesc, 
     const PluginTensorDesc *outputDesc, const void *const *inputs, 
     void *const *outputs, void *workspace, cudaStream_t stream)  
@@ -169,17 +168,13 @@ public:
     return RETINANET_PLUGIN_NAMESPACE;
   }
   
-  void setPluginNamespace(const char *N) override {
+  void setPluginNamespace(const char *N) override {}
 
-  }
-
-  // IPluginV2Ext Methods
   DataType getOutputDataType(int index, const DataType* inputTypes, int nbInputs) const
   {
     assert(index < 3);
     return DataType::kFLOAT;
   }
-
 
   void configurePlugin(const DynamicPluginTensorDesc *in, int nbInputs, 
     const DynamicPluginTensorDesc *out, int nbOutputs)

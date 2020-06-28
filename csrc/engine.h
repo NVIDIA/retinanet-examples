@@ -43,10 +43,10 @@ public:
 
     // Create engine from serialized onnx model
     
-    Engine(const char *onnx_model, size_t onnx_size, size_t batch, string precision,
-        float score_thresh, int top_n, const vector<vector<float>>& anchors, bool rotated,
+    Engine(const char *onnx_model, size_t onnx_size, const vector<int>& dynamic_batch_opts, size_t batch,
+        string precision, float score_thresh, int top_n, const vector<vector<float>>& anchors, bool rotated,
         float nms_thresh, int detections_per_im, const vector<string>& calibration_images,
-        string model_name, string calibration_table, const vector<int>& dynamic_batch_opts, bool verbose, size_t workspace_size=(1ULL << 30));
+        string model_name, string calibration_table, bool verbose, size_t workspace_size=(1ULL << 30));
     
     ~Engine();
 

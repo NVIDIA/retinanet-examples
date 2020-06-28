@@ -42,7 +42,6 @@ class NMSRotatePlugin : public IPluginV2DynamicExt {
   int _detections_per_im;
 
   size_t _count;
-
   mutable int size = -1;
 
 protected:
@@ -121,7 +120,6 @@ public:
   size_t getWorkspaceSize(const PluginTensorDesc *inputs, 
     int nbInputs, const PluginTensorDesc *outputs, int nbOutputs) const override 
   {
-    static int size = -1;
     if (size < 0) {
       size = cuda::nms_rotate(inputs->dims.d[0], nullptr, nullptr, _count, 
         _detections_per_im, _nms_thresh, 
@@ -147,11 +145,8 @@ public:
     return RETINANET_PLUGIN_NAMESPACE;
   }
   
-  void setPluginNamespace(const char *N) override {
-    
-  }
+  void setPluginNamespace(const char *N) override {}
 
-  // IPluginV2Ext Methods
   DataType getOutputDataType(int index, const DataType* inputTypes, int nbInputs) const
   {
     assert(index < 3);

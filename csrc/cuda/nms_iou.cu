@@ -35,8 +35,8 @@
 #include <thrust/execution_policy.h>
 #include <thrust/gather.h>
 #include <thrust/sequence.h>
-#include <thrust/system/cuda/detail/cub/device/device_radix_sort.cuh>
-#include <thrust/system/cuda/detail/cub/iterator/counting_input_iterator.cuh>
+#include <cub/device/device_radix_sort.cuh>
+#include <cub/iterator/counting_input_iterator.cuh>
 
 constexpr int   kTPB     = 64;  // threads per block
 constexpr int   kCorners = 4;
@@ -260,21 +260,11 @@ int nms_rotate(int batch_size, const void *const *inputs, void *const *outputs, 
     workspace_size += get_size_aligned<float>( count );  // scores
     workspace_size += get_size_aligned<float>( count );  // scores_sorted
     size_t temp_size_flag = 0;
-    thrust::cuda_cub::cub::DeviceSelect::Flagged(( void * )nullptr,
-                                                temp_size_flag,
-                                                thrust::cuda_cub::cub::CountingInputIterator<int>( count ),
-                                                ( bool * )nullptr,
-                                                ( int * )nullptr,
-                                                ( int * )nullptr,
-                                                count );
+    cub::DeviceSelect::Flagged((void*)nullptr, temp_size_flag,
+      cub::CountingInputIterator<int>(count), (bool*)nullptr, (int*)nullptr, (int*)nullptr, count);
     size_t temp_size_sort = 0;
-    thrust::cuda_cub::cub::DeviceRadixSort::SortPairsDescending(( void * )nullptr,
-                                                                temp_size_sort,
-                                                                ( float * )nullptr,
-                                                                ( float * )nullptr,
-                                                                ( int * )nullptr,
-                                                                ( int * )nullptr,
-                                                                count );
+    cub::DeviceRadixSort::SortPairsDescending((void*)nullptr, temp_size_sort, (float*)nullptr,
+      (float*)nullptr, (int*)nullptr, (int*)nullptr, count);
     workspace_size += std::max( temp_size_flag, temp_size_sort );
     return workspace_size;
   }
@@ -295,44 +285,22 @@ int nms_rotate(int batch_size, const void *const *inputs, void *const *outputs, 
     // Discard null scores
     thrust::transform( on_stream, in_scores, in_scores + count, flags, thrust::placeholders::_1 > 0.0f );
     int *num_selected = reinterpret_cast<int *>( indices_sorted );
-    thrust::cuda_cub::cub::DeviceSelect::Flagged(workspace,
-                                                workspace_size,
-                                                thrust::cuda_cub::cub::CountingInputIterator<int>( 0 ),
-                                                flags,
-                                                indices,
-                                                num_selected,
-                                                count,
-                                                stream );
+    cub::DeviceSelect::Flagged(workspace, workspace_size, cub::CountingInputIterator<int>(0), flags,
+      indices, num_selected, count, stream );
     cudaStreamSynchronize( stream );
     int num_detections = *thrust::device_pointer_cast( num_selected );
     // Sort scores and corresponding indices
     thrust::gather( on_stream, indices, indices + num_detections, in_scores, scores );
-    thrust::cuda_cub::cub::DeviceRadixSort::SortPairsDescending(workspace,
-                                                                workspace_size,
-                                                                scores,
-                                                                scores_sorted,
-                                                                indices,
-                                                                indices_sorted,
-                                                                num_detections,
-                                                                0,
-                                                                sizeof( *scores ) * 8,
-                                                                stream );  // From 8
+    cub::DeviceRadixSort::SortPairsDescending(workspace, workspace_size, scores, scores_sorted,
+      indices, indices_sorted, num_detections, 0, sizeof(*scores)*8, stream ); // From 8
     // Launch actual NMS kernel - 1 block with each thread handling n detections
-    const int max_threads    = 1024;
-    int       num_per_thread = ceil( ( float )num_detections / max_threads );
+    const int max_threads = 1024;
+    int num_per_thread = ceil((float)num_detections/max_threads);
     nms_rotate_kernel<<<1, max_threads, 0, stream>>>(
-        num_per_thread, nms_thresh, num_detections, indices_sorted, scores_sorted, in_classes, in_boxes );
+      num_per_thread, nms_thresh, num_detections, indices_sorted, scores_sorted, in_classes, in_boxes);
     // Re-sort with updated scores
-    thrust::cuda_cub::cub::DeviceRadixSort::SortPairsDescending(workspace,
-                                                                workspace_size,
-                                                                scores_sorted,
-                                                                scores,
-                                                                indices_sorted,
-                                                                indices,
-                                                                num_detections,
-                                                                0,
-                                                                sizeof( *scores ) * 8,
-                                                                stream );  // From 8
+    cub::DeviceRadixSort::SortPairsDescending(workspace, workspace_size, scores_sorted, scores,
+      indices_sorted, indices, num_detections, 0, sizeof( *scores ) * 8, stream );  // From 8
     // Gather filtered scores, boxes, classes
     num_detections = min( detections_per_im, num_detections );
     cudaMemcpyAsync( out_scores, scores, num_detections * sizeof *scores, cudaMemcpyDeviceToDevice, stream );

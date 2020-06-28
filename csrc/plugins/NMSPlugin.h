@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -42,6 +42,7 @@ class NMSPlugin : public IPluginV2DynamicExt {
   int _detections_per_im;
 
   size_t _count;
+  mutable int size = -1;
 
 protected:
   void deserialize(void const* data, size_t length) {
@@ -119,7 +120,6 @@ public:
   size_t getWorkspaceSize(const PluginTensorDesc *inputs, 
     int nbInputs, const PluginTensorDesc *outputs, int nbOutputs) const override 
   {
-    static int size = -1;
     if (size < 0) {
       size = cuda::nms(inputs->dims.d[0], nullptr, nullptr, _count, 
         _detections_per_im, _nms_thresh, 
@@ -145,11 +145,8 @@ public:
     return RETINANET_PLUGIN_NAMESPACE;
   }
   
-  void setPluginNamespace(const char *N) override {
-    
-  }
+  void setPluginNamespace(const char *N) override {}
 
-  // IPluginV2Ext Methods
   DataType getOutputDataType(int index, const DataType* inputTypes, int nbInputs) const
   {
     assert(index < 3);

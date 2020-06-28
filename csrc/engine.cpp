@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -92,10 +92,10 @@ Engine::~Engine() {
     if (_runtime) _runtime->destroy();
 }
 
-Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string precision,
-    float score_thresh, int top_n, const vector<vector<float>>& anchors, bool rotated,
-    float nms_thresh, int detections_per_im, const vector<string>& calibration_images, 
-    string model_name, string calibration_table, const vector<int>& dynamic_batch_opts, bool verbose, size_t workspace_size) {
+Engine::Engine(const char *onnx_model, size_t onnx_size, const vector<int>& dynamic_batch_opts,
+    size_t batch, string precision, float score_thresh, int top_n, const vector<vector<float>>& anchors, 
+    bool rotated, float nms_thresh, int detections_per_im, const vector<string>& calibration_images,
+    string model_name, string calibration_table, bool verbose, size_t workspace_size) {
 
     Logger logger(verbose);
     _runtime = createInferRuntime(logger);
@@ -104,22 +104,18 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string pr
     bool int8 = precision.compare("INT8") == 0;
 
     // Create builder
-    IBuilder* builder = createInferBuilder(logger); //was auto
+    auto builder = createInferBuilder(logger);
     const auto builderConfig = builder->createBuilderConfig();
     // Allow use of FP16 layers when running in INT8
     if(fp16 || int8) builderConfig->setFlag(BuilderFlag::kFP16);
     builderConfig->setMaxWorkspaceSize(workspace_size);
-    builderConfig->setFlag(BuilderFlag::kSTRICT_TYPES); //NEW
     
     // Parse ONNX FCN
     cout << "Building " << precision << " core model..." << endl;
-    const auto flags = 1U << static_cast<int>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH); //was uint32_t
-    
+    const auto flags = 1U << static_cast<int>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
     auto network = builder->createNetworkV2(flags);
-    
     auto parser = createParser(*network, logger);
     parser->parse(onnx_model, onnx_size);
-    
     
     auto input = network->getInput(0);
     auto inputDims = input->getDimensions();
@@ -138,8 +134,12 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string pr
 
     std::unique_ptr<Int8EntropyCalibrator> calib;
     if (int8) {
+        /* Calibration is performed using kOPT values of the profile.
+           Calibration input data size must match this profile.
+        */
         builderConfig->setFlag(BuilderFlag::kINT8);
-        ImageStream stream(batch, inputDims, calibration_images);
+        builderConfig->setCalibrationProfile(profile);
+        ImageStream stream(dynamic_batch_opts[1], inputDims, calibration_images);
         calib = std::unique_ptr<Int8EntropyCalibrator>(new Int8EntropyCalibrator(stream, model_name, calibration_table));
         builderConfig->setInt8Calibrator(calib.get());
     }
@@ -155,7 +155,6 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string pr
         auto classOutput = network->getOutput(i);
         auto boxOutput = network->getOutput(nbOutputs / 2 + i);
         auto outputDims = classOutput->getDimensions();
-    
         int scale = inputDims.d[2] / outputDims.d[2];
         auto decodePlugin = DecodePlugin(score_thresh, top_n, anchors[i], scale);
         auto decodeRotatePlugin = DecodeRotatePlugin(score_thresh, top_n, anchors[i], scale);
@@ -164,7 +163,6 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string pr
         vector<ITensor *> inputs = {classOutput, boxOutput};
         auto layer = (!rotated) ? network->addPluginV2(inputs.data(), inputs.size(), decodePlugin) \
                     : network->addPluginV2(inputs.data(), inputs.size(), decodeRotatePlugin);
-        
         scores.push_back(layer->getOutput(0));
         boxes.push_back(layer->getOutput(1));
         classes.push_back(layer->getOutput(2));
@@ -187,15 +185,13 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, size_t batch, string pr
     auto nmsPlugin = NMSPlugin(nms_thresh, detections_per_im);
     auto nmsRotatePlugin = NMSRotatePlugin(nms_thresh, detections_per_im);
     auto layer = (!rotated) ? network->addPluginV2(concat.data(), concat.size(), nmsPlugin) \
-                : network->addPluginV2(concat.data(), concat.size(), nmsRotatePlugin);    
-    
+                : network->addPluginV2(concat.data(), concat.size(), nmsRotatePlugin);
     vector<string> names = {"scores", "boxes", "classes"};
     for (int i = 0; i < layer->getNbOutputs(); i++) {
         auto output = layer->getOutput(i);
         network->markOutput(*output);
         output->setName(names[i].c_str());
     }
-    
     
     // Build engine
     cout << "Applying optimizations and building TRT CUDA engine..." << endl;

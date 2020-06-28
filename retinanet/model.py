@@ -242,7 +242,7 @@ class Model(nn.Module):
 
         return model, state
 
-    def export(self, size, batch, precision, calibration_files, calibration_table, verbose, dynamic_batch_opts, onnx_only=False):
+    def export(self, size, dynamic_batch_opts, batch, precision, calibration_files, calibration_table, verbose, onnx_only=False):
 
         import torch.onnx.symbolic_opset10 as onnx_symbolic
         def upsample_nearest2d(g, input, output_size, *args):
@@ -283,8 +283,7 @@ class Model(nn.Module):
         else:
             anchors = [generate_anchors_rotated(stride, self.ratios, self.scales, 
                     self.angles)[0].view(-1).tolist() for stride in self.strides]
-        # Set batch_size = 1 batch/GPU for EXPLICIT_BATCH compatibility in TRT
-        batch = 1
-        return Engine(onnx_bytes.getvalue(), len(onnx_bytes.getvalue()), batch, precision,
-                      self.threshold, self.top_n, anchors, self.rotated_bbox, self.nms, self.detections, 
-                      calibration_files, model_name, calibration_table, dynamic_batch_opts, verbose)
+
+        return Engine(onnx_bytes.getvalue(), len(onnx_bytes.getvalue()), dynamic_batch_opts, batch,
+                      precision, self.threshold, self.top_n, anchors, self.rotated_bbox, self.nms, 
+                      self.detections, calibration_files, model_name, calibration_table, verbose)
