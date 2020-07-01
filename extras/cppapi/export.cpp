@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
 
 	// Define default RetinaNet parameters to use for TRT export
 	const vector<int> dynamic_batch_opts{1, 8, 16};
-	int batch = 1;
+	int calibration_batches = 2; // must be >= 1
 	float score_thresh = 0.05f;
 	int top_n = 1000;
 	size_t workspace_size =(1ULL << 30);
@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// For INT8 calibration, after setting COCO_PATH on line 10:
-	// const vector<string> calibration_files = glob(dynamic_batch_opts[1]);
+	// const vector<string> calibration_files = glob(calibration_batches*dynamic_batch_opts[1]);
 	const vector<string> calibration_files;
 	string model_name = "";
 	string calibration_table = argc == 4 ? string(argv[3]) : "";
@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
 		precision = "INT8";
 
 	cout << "Building engine..." << endl;
-	auto engine = retinanet::Engine(buffer, size, dynamic_batch_opts, batch, precision, score_thresh, top_n,
+	auto engine = retinanet::Engine(buffer, size, dynamic_batch_opts, precision, score_thresh, top_n,
 		anchors, ROTATED, nms_thresh, detections_per_im, calibration_files, model_name, calibration_table, verbose, workspace_size);
 	engine.save(string(argv[2]));
 

@@ -62,10 +62,12 @@ odtk export model.pth model_fp32.plan --full-precision --size 800 1280
 
 In order to use INT8 precision with TensorRT, you need to provide calibration images (images that are representative of what will be seen at runtime) that will be used to rescale the network.
 ```bash
-odtk export model.pth model_int8.plan --int8 --calibration-images /data/val/ --calibration-batches 10 --calibration-table model_calibration_table
+odtk export model.pth model_int8.plan --int8 --calibration-images /data/val/ --calibration-batches 2 --calibration-table model_calibration_table
 ```
 
-This will randomly select 20 images from `/data/val/` to calibrate the network for INT8 precision. The results from calibration will be saved to `model_calibration_table` that can be used to create subsequent INT8 engines for this model without needed to recalibrate. 
+This will randomly select 16 images from `/data/val/` to calibrate the network for INT8 precision. The results from calibration will be saved to `model_calibration_table` that can be used to create subsequent INT8 engines for this model without needed to recalibrate. 
+
+**NOTE:** Number of images in `/data/val/` must be greater than or equal to the kOPT(middle) optimization profile from `--dynamic-batch-opts`. Here, the default kOPT is 8.
 
 Build an INT8 engine for a previously calibrated model:
 ```bash

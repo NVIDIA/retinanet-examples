@@ -31,10 +31,12 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
     # Setup optimizer and schedule
     optimizer = SGD(model.parameters(), lr=lr, weight_decay=regularization_l2, momentum=0.9)
 
+    loss_scale = "dynamic" if use_dali else "128.0"
+
     model, optimizer = amp.initialize(model, optimizer,
                                       opt_level='O2' if mixed_precision else 'O0',
                                       keep_batchnorm_fp32=True,
-                                      loss_scale=128.0,
+                                      loss_scale=loss_scale,
                                       verbosity=is_master)
 
     if world > 1:

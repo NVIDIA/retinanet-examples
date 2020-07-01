@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
 		cout << "Inferring on frame: " << count <<"/" << nframes << endl;
 		count++;
 		vector<void *> buffers = { data_d, scores_d, boxes_d, classes_d };
-		engine.infer(buffers);
+		engine.infer(buffers, 1);
 
 		cudaMemcpy(scores.get(), scores_d, sizeof(float) * num_det, cudaMemcpyDeviceToHost);
 		cudaMemcpy(boxes.get(), boxes_d, sizeof(float) * num_det * 4, cudaMemcpyDeviceToHost);

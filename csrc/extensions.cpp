@@ -183,8 +183,8 @@ vector<at::Tensor> infer(retinanet::Engine &engine, at::Tensor data, bool rotate
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     pybind11::class_<retinanet::Engine>(m, "Engine")
-        .def(pybind11::init<const char *, size_t, const vector<int>&, size_t, string, float,
-            int, const vector<vector<float>>&, bool, float, int, const vector<string>&, string, string, bool>())
+        .def(pybind11::init<const char *, size_t, const vector<int>&, string, float, int,
+            const vector<vector<float>>&, bool, float, int, const vector<string>&, string, string, bool>())
         .def("save", &retinanet::Engine::save)
         .def("infer", &retinanet::Engine::infer)
         .def_property_readonly("stride", &retinanet::Engine::getStride)

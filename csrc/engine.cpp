@@ -93,7 +93,7 @@ Engine::~Engine() {
 }
 
 Engine::Engine(const char *onnx_model, size_t onnx_size, const vector<int>& dynamic_batch_opts,
-    size_t batch, string precision, float score_thresh, int top_n, const vector<vector<float>>& anchors, 
+    string precision, float score_thresh, int top_n, const vector<vector<float>>& anchors, 
     bool rotated, float nms_thresh, int detections_per_im, const vector<string>& calibration_images,
     string model_name, string calibration_table, bool verbose, size_t workspace_size) {
 
@@ -134,9 +134,9 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, const vector<int>& dyna
 
     std::unique_ptr<Int8EntropyCalibrator> calib;
     if (int8) {
-        // Calibration is performed using kOPT values of the profile.
-        // Calibration input data size must match this profile.
         builderConfig->setFlag(BuilderFlag::kINT8);
+        // Calibration is performed using kOPT values of the profile.
+        // Calibration batch size must match this profile.
         builderConfig->setCalibrationProfile(profile);
         ImageStream stream(dynamic_batch_opts[1], inputDims, calibration_images);
         calib = std::unique_ptr<Int8EntropyCalibrator>(new Int8EntropyCalibrator(stream, model_name, calibration_table));
@@ -201,6 +201,8 @@ Engine::Engine(const char *onnx_model, size_t onnx_size, const vector<int>& dyna
     network->destroy();
     builderConfig->destroy();
     builder->destroy();
+
+    _prepare();
 }
 
 void Engine::save(const string &path) {

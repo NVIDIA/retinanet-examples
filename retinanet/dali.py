@@ -32,7 +32,7 @@ class COCOPipeline(pipeline.Pipeline):
 
         self.decode_train = ops.ImageDecoderSlice(device="mixed", output_type=types.RGB)
         self.decode_infer = ops.ImageDecoder(device="mixed", output_type=types.RGB)
-        self.bbox_crop = ops.RandomBBoxCrop(device='cpu', ltrb=True, scaling=[0.3, 1.0],
+        self.bbox_crop = ops.RandomBBoxCrop(device='cpu', bbox_layout="xyXY", scaling=[0.3, 1.0],
                                             thresholds=[0.1, 0.3, 0.5, 0.7, 0.9])
 
         self.bbox_flip = ops.BbFlip(device='cpu', ltrb=True)
@@ -122,7 +122,7 @@ class DaliDataIterator():
                                  augment_brightness=augment_brightness,
                                  augment_contrast=augment_contrast, augment_hue=augment_hue,
                                  augment_saturation=augment_saturation)
-        
+
         self.pipe.build()
 
     def __repr__(self):
@@ -149,7 +149,7 @@ class DaliDataIterator():
                 id = int(dali_ids.at(batch)[0])
 
                 # Convert dali tensor to pytorch
-                dali_tensor = dali_data.at(batch)
+                dali_tensor = dali_data[batch]
                 tensor_shape = dali_tensor.shape()
 
                 datum = torch.zeros(dali_tensor.shape(), dtype=torch.float, device=torch.device('cuda'))
@@ -158,7 +158,7 @@ class DaliDataIterator():
 
                 # Calculate image resize ratio to rescale boxes
                 prior_size = dali_attrs.as_cpu().at(batch)
-                resized_size = dali_resize_img.at(batch).shape()
+                resized_size = dali_resize_img[batch].shape()
                 ratio = max(resized_size) / max(prior_size)
 
                 if self.training:
@@ -192,12 +192,10 @@ class DaliDataIterator():
 
             if self.training:
                 pyt_targets = pyt_targets.cuda(non_blocking=True)
-
                 yield data, pyt_targets
 
             else:
                 ids = torch.Tensor(ids).int().cuda(non_blocking=True)
                 ratios = torch.Tensor(ratios).cuda(non_blocking=True)
-
                 yield data, ids, ratios
 

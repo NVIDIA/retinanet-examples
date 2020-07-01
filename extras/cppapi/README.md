@@ -32,7 +32,7 @@ msbuild retinanet_infer.sln
 
 If you don't have an ONNX core model, generate one from your RetinaNet model:
 ```bash
-retinanet export model.pth model.onnx
+odtk export model.pth model.onnx
 ```
 
 Load the ONNX core model and export it to a RetinaNet TensorRT engine (using FP16 precision):

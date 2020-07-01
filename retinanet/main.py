@@ -98,12 +98,10 @@ def parse(args):
     parser_export.add_argument('--size', metavar='height width', type=int, nargs='+',
                                help='input size (square) or sizes (h w) to use when generating TensorRT engine',
                                default=[1280])
-    parser_export.add_argument('--batch', metavar='size', type=int, help='max batch size to use for TensorRT engine',
-                               default=2)
     parser_export.add_argument('--full-precision', help='export in full instead of half precision', action='store_true')
     parser_export.add_argument('--int8', help='calibrate model and export in int8 precision', action='store_true')
     parser_export.add_argument('--calibration-batches', metavar='size', type=int,
-                               help='number of batches to use for int8 calibration', default=4)
+                               help='number of batches to use for int8 calibration', default=2)
     parser_export.add_argument('--calibration-images', metavar='path', type=str,
                                help='path to calibration images to use for int8 calibration', default="")
     parser_export.add_argument('--calibration-table', metavar='path', type=str,
@@ -163,7 +161,7 @@ def worker(rank, args, world, model, state):
         torch.cuda.set_device(rank)
         torch.distributed.init_process_group(backend='nccl', init_method='env://')
 
-        if args.batch % world != 0:
+        if (args.command != 'export') and (args.batch % world != 0):
             raise RuntimeError('Batch size should be a multiple of the number of GPUs')
 
     if model and model.angles is not None:
@@ -204,11 +202,16 @@ def worker(rank, args, world, model, state):
                 for ex in file_extensions:
                     calibration_files += glob.glob("{}/*{}".format(args.calibration_images, ex), recursive=True)
                 # Only need enough images for specified num of calibration batches
-                if len(calibration_files) >= args.calibration_batches * args.batch:
-                    calibration_files = calibration_files[:(args.calibration_batches * args.batch)]
+                if len(calibration_files) >= args.calibration_batches * args.dynamic_batch_opts[1]:
+                    calibration_files = calibration_files[:(args.calibration_batches * args.dynamic_batch_opts[1])]
                 else:
-                    print('Only found enough images for {} batches. Continuing anyway...'.format(
-                        len(calibration_files) // args.batch))
+                    # Number of images for calibration must be greater than or equal to the kOPT optimization profile
+                    if len(calibration_files) >= args.dynamic_batch_opts[1]:
+                        print('Only found enough images for {} batches. Continuing anyway...'.format(
+                            len(calibration_files) // args.dynamic_batch_opts[1]))
+                    else:
+                        raise RuntimeError('Not enough images found for calibration. ({} < {})'
+                                            .format(len(calibration_files), args.dynamic_batch_opts[1]))
 
                 random.shuffle(calibration_files)
 
@@ -218,7 +221,7 @@ def worker(rank, args, world, model, state):
         elif not args.full_precision:
             precision = "FP16"
 
-        exported = model.export(input_size, args.dynamic_batch_opts, args.batch, precision, calibration_files, 
+        exported = model.export(input_size, args.dynamic_batch_opts, precision, calibration_files, 
                                 args.calibration_table, args.verbose, onnx_only=onnx_only)
         if onnx_only:
             with open(args.export, 'wb') as out:

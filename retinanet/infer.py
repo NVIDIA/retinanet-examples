@@ -33,10 +33,6 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
 
     # Prepare dataset
     if verbose: print('Preparing dataset...')
-    data_iterator = (DaliDataIterator if use_dali else DataIterator)(
-            path, resize, max_size, batch_size, stride,
-            world, annotations, training=False)
-    
     if rotated_bbox:
         if use_dali: raise NotImplementedError("This repo does not currently support DALI for rotated bbox.")
         data_iterator = RotatedDataIterator(path, resize, max_size, batch_size, stride,
@@ -45,7 +41,6 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
         data_iterator = (DaliDataIterator if use_dali else DataIterator)(
             path, resize, max_size, batch_size, stride,
             world, annotations, training=False)
-    
     if verbose: print(data_iterator)
 
     # Prepare model
