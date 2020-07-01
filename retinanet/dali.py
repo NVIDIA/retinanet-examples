@@ -149,7 +149,7 @@ class DaliDataIterator():
                 id = int(dali_ids.at(batch)[0])
 
                 # Convert dali tensor to pytorch
-                dali_tensor = dali_data.at(batch)
+                dali_tensor = dali_data[batch]
                 tensor_shape = dali_tensor.shape()
 
                 datum = torch.zeros(dali_tensor.shape(), dtype=torch.float, device=torch.device('cuda'))
@@ -158,7 +158,7 @@ class DaliDataIterator():
 
                 # Calculate image resize ratio to rescale boxes
                 prior_size = dali_attrs.as_cpu().at(batch)
-                resized_size = dali_resize_img.at(batch).shape()
+                resized_size = dali_resize_img[batch].shape()
                 ratio = max(resized_size) / max(prior_size)
 
                 if self.training:
