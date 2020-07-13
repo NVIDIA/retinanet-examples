@@ -31,7 +31,7 @@ def order_points(pts):
 
 def rotate_boxes(boxes, points=False):
     '''
-    Rotate target bounding boxes 
+    Rotate target bounding boxes
     
     Input:  
         Target boxes (xmin_ymin, width_height, theta)
@@ -46,19 +46,19 @@ def rotate_boxes(boxes, points=False):
 
     if points:
         cents = torch.stack([(boxes[:,0]+boxes[:,2])/2, (boxes[:,1]+boxes[:,3])/2],1).transpose(1,0)
-        boxes_rotated = torch.stack([boxes[:,0],boxes[:,1], 
-            boxes[:,2], boxes[:,1], 
-            boxes[:,2], boxes[:,3], 
-            boxes[:,0], boxes[:,3], 
+        boxes_rotated = torch.stack([boxes[:,0],boxes[:,1],
+            boxes[:,2], boxes[:,1],
+            boxes[:,2], boxes[:,3],
+            boxes[:,0], boxes[:,3],
             boxes[:,-2],
             boxes[:,-1]],1)
 
     else:
-        cents = torch.stack([boxes[:,0]+(boxes[:,2]-1)/2, boxes[:,1]+(boxes[:,3]-1)/2],1).transpose(1,0)
-        boxes_rotated = torch.stack([boxes[:,0],boxes[:,1], 
-            (boxes[:,0]+boxes[:,2]-1), boxes[:,1], 
-            (boxes[:,0]+boxes[:,2]-1), (boxes[:,1]+boxes[:,3]-1), 
-            boxes[:,0], (boxes[:,1]+boxes[:,3]-1), 
+        cents = torch.stack([boxes[:,0]+(boxes[:,2])/2, boxes[:,1]+(boxes[:,3])/2],1).transpose(1,0)
+        boxes_rotated = torch.stack([boxes[:,0],boxes[:,1],
+            (boxes[:,0]+boxes[:,2]), boxes[:,1],
+            (boxes[:,0]+boxes[:,2]), (boxes[:,1]+boxes[:,3]),
+            boxes[:,0], (boxes[:,1]+boxes[:,3]),
             boxes[:,-2],
             boxes[:,-1]],1)
 
@@ -72,7 +72,7 @@ def rotate_boxes(boxes, points=False):
     xy2R = torch.stack([xy2R[i,:,i] for i in range(xy2R.size(0))])
     xy3R = torch.stack([xy3R[i,:,i] for i in range(xy3R.size(0))])
 
-    boxes_axis = torch.cat([boxes[:, :2], boxes[:, :2] + boxes[:, 2:4] - 1, 
+    boxes_axis = torch.cat([boxes[:, :2], boxes[:, :2] + boxes[:, 2:4] - 1,
         torch.sin(boxes[:,-1, None]), torch.cos(boxes[:,-1, None])], 1)
     boxes_rotated = order_points(torch.stack([xy0R,xy1R,xy2R,xy3R],dim = 1)).view(-1,8)
     

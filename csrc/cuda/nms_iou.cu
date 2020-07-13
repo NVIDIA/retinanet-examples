@@ -41,7 +41,6 @@
 constexpr int   kTPB     = 64;  // threads per block
 constexpr int   kCorners = 4;
 constexpr int   kPoints  = 8;
-constexpr float padding  = 10000.0f;
 
 namespace retinanet {
 namespace cuda {
@@ -105,11 +104,11 @@ __host__ __device__ void rotateLeft( T *array, int const &count ) {
     array[count - 1] = temp;
 }
 
-__host__ __device__ static __inline__ float2 padfloat2( float2 a, float b ) {
-    float2 res;
-    res.x = a.x + b;
-    res.y = a.y + b;
-    return res;
+__host__ __device__ static __inline__ float2 padfloat2( float2 a, float2 b ) {
+  float2 res;
+  res.x = a.x + b.x;
+  res.y = a.y + b.y;
+  return res;
 }
 
 __device__ float IntersectionArea( float2 *mrect, float2 *mrect_shift, float2 *intersection ) {
@@ -181,15 +180,15 @@ __global__ void nms_rotate_kernel(const int num_per_thread, const float threshol
         int icls    = classes[idx];
         int mcls    = classes[max_idx];
         if ( mcls == icls ) {
-          float6 ibox = make_float6( make_float4( boxes[idx].x1 + padding,
-                                                  boxes[idx].y1 + padding,
-                                                  boxes[idx].x2 + padding,
-                                                  boxes[idx].y2 + padding ),
+          float6 ibox = make_float6( make_float4( boxes[idx].x1,
+                                                  boxes[idx].y1,
+                                                  boxes[idx].x2,
+                                                  boxes[idx].y2 ),
                                   make_float2( boxes[idx].s, boxes[idx].c ) );
-          float6 mbox = make_float6( make_float4( boxes[max_idx].x1 + padding,
-                                                  boxes[max_idx].y1 + padding,
-                                                  boxes[max_idx].x2 + padding,
-                                                  boxes[max_idx].y2 + padding ),
+          float6 mbox = make_float6( make_float4( boxes[max_idx].x1,
+                                                  boxes[max_idx].y1,
+                                                  boxes[max_idx].x2,
+                                                  boxes[max_idx].y2 ),
                                   make_float2( boxes[idx].s, boxes[idx].c ) );
           float2 intersection[kPoints] { -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,
                                       -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f };
@@ -205,10 +204,19 @@ __global__ void nms_rotate_kernel(const int num_per_thread, const float threshol
           float2 mboxc[kCorners] = { mbox.x1 - mcent.x, mbox.y1 - mcent.y, mbox.x2 - mcent.x,
                                   mbox.y1 - mcent.y, mbox.x2 - mcent.x, mbox.y2 - mcent.y,
                                   mbox.x1 - mcent.x, mbox.y2 - mcent.y };
+          float2 pad;
 #pragma unroll
           for ( int b = 0; b < kCorners; b++ ) {
-            intersection[b] = { ( iboxc[b].x * ibox.c - iboxc[b].y * ibox.s ) + icent.x,
-                                ( iboxc[b].y * ibox.c + iboxc[b].x * ibox.s ) + icent.y };
+            if ( ( iboxc[b].x * ibox.c - iboxc[b].y * ibox.s ) + icent.x == ( mboxc[b].x * mbox.c - mboxc[b].y * mbox.s ) + mcent.x )
+              pad.x = 0.001f;
+            else
+              pad.x = 0.0f;
+            if ( ( iboxc[b].y * ibox.c + iboxc[b].x * ibox.s ) + icent.y == ( mboxc[b].y * mbox.c + mboxc[b].x * mbox.s ) + mcent.y )
+              pad.y = 0.001f;
+            else
+              pad.y = 0.0f;
+            intersection[b] = { ( iboxc[b].x * ibox.c - iboxc[b].y * ibox.s ) + icent.x + pad.x,
+                                ( iboxc[b].y * ibox.c + iboxc[b].x * ibox.s ) + icent.y + pad.y};
             irect[b]        = { ( iboxc[b].x * ibox.c - iboxc[b].y * ibox.s ) + icent.x,
                         ( iboxc[b].y * ibox.c + iboxc[b].x * ibox.s ) + icent.y };
             irect_shift[b]  = { ( iboxc[b].x * ibox.c - iboxc[b].y * ibox.s ) + icent.x,
@@ -356,13 +364,22 @@ __global__ void iou_cuda_kernel(int const numBoxes, int const numAnchors,
     float2 rect1_shift[kPoints] {};
     float2 rect2[kPoints] {};
     float2 rect2_shift[kPoints] {};
+    float2 pad;
 #pragma unroll
     for ( int b = 0; b < kCorners; b++ ) {
-      intersection[b] = padfloat2( b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )], padding );
-      rect1[b]        = padfloat2( b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )], padding );
-      rect1_shift[b]  = padfloat2( b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )], padding );
-      rect2[b]        = padfloat2( a_box_vals[( tid * kCorners + b ) % ( numAnchors * kCorners )], padding );
-      rect2_shift[b]  = padfloat2( a_box_vals[( tid * kCorners + b ) % ( numAnchors * kCorners )], padding );
+      if ( b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )].x == a_box_vals[( tid * kCorners + b ) % ( numAnchors * kCorners )].x )
+        pad.x = 0.001f;
+      else
+        pad.x = 0.0f;
+      if ( b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )].y == a_box_vals[( tid * kCorners + b ) % ( numAnchors * kCorners )].y )
+        pad.y = 0.001f;
+      else
+        pad.y = 0.0f;
+      intersection[b] = padfloat2( b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )], pad );
+      rect1[b]        = b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )];
+      rect1_shift[b]  = b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )];
+      rect2[b]        = a_box_vals[( tid * kCorners + b ) % ( numAnchors * kCorners )];
+      rect2_shift[b]  = a_box_vals[( tid * kCorners + b ) % ( numAnchors * kCorners )];
     }
     rotateLeft( rect1_shift, 4 );
     rotateLeft( rect2_shift, 4 );
@@ -400,5 +417,5 @@ int iou( const void *const *inputs, void **outputs, int num_boxes, int num_ancho
   return 0;
 }
 
-} 
+}
 }
