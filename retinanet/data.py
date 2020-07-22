@@ -6,6 +6,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils import data
 from pycocotools.coco import COCO
+import math
 from torchvision.transforms.functional import adjust_brightness, adjust_contrast, adjust_hue, adjust_saturation
 
 
@@ -70,16 +71,16 @@ class CocoDataset(data.dataset.Dataset):
                 im = im.rotate(random_angle)
                 x, y, w, h = boxes[:, 0].clone(), boxes[:, 1].clone(), boxes[:, 2].clone(), boxes[:, 3].clone()
                 if random_angle == 90:
-                    boxes[:, 0] = y
-                    boxes[:, 1] = im.size[1] - x - w
+                    boxes[:, 0] = y - im.size[1] / 2 + im.size[0] / 2
+                    boxes[:, 1] = im.size[0] / 2 + im.size[1] / 2 - x - w
                     boxes[:, 2] = h
                     boxes[:, 3] = w
                 elif random_angle == 180:
                     boxes[:, 0] = im.size[0] - x - w
                     boxes[:, 1] = im.size[1] - y - h
                 elif random_angle == 270:
-                    boxes[:, 0] = im.size[0] - y - h
-                    boxes[:, 1] = x
+                    boxes[:, 0] = im.size[0] / 2 + im.size[1] / 2 - y - h
+                    boxes[:, 1] = x - im.size[0] / 2 + im.size[1] / 2
                     boxes[:, 2] = h
                     boxes[:, 3] = w
 
@@ -238,7 +239,7 @@ class RotatedCocoDataset(data.dataset.Dataset):
 
     def __init__(self, path, resize, max_size, stride, annotations=None, training=False, rotate_augment=False,
                  augment_brightness=0.0, augment_contrast=0.0,
-                 augment_hue=0.0, augment_saturation=0.0):
+                 augment_hue=0.0, augment_saturation=0.0, absolute_angle=False):
         super().__init__()
 
         self.path = os.path.expanduser(path)
@@ -253,6 +254,7 @@ class RotatedCocoDataset(data.dataset.Dataset):
         self.augment_contrast = augment_contrast
         self.augment_hue = augment_hue
         self.augment_saturation = augment_saturation
+        self.absolute_angle=absolute_angle
 
         with redirect_stdout(None):
             self.coco = COCO(annotations)
@@ -292,23 +294,38 @@ class RotatedCocoDataset(data.dataset.Dataset):
             random_angle = random.randint(0, 3) * 90
             if self.rotate_augment and random_angle != 0:
                 # rotate by random_angle degrees.
-                im = im.rotate(random_angle)
-                x, y, w, h, t = boxes[:, 0].clone(), boxes[:, 1].clone(), boxes[:, 2].clone(), boxes[:,
-                                                                                               3].clone(), boxes[:,
-                                                                                                           4].clone()
+                original_size = im.size
+                im = im.rotate(random_angle, expand=True)
+                x, y, w, h, t = boxes[:, 0].clone(), boxes[:, 1].clone(), boxes[:, 2].clone(), \
+                                boxes[:, 3].clone(), boxes[:, 4].clone()
                 if random_angle == 90:
                     boxes[:, 0] = y
-                    boxes[:, 1] = im.size[1] - x - w
-                    boxes[:, 2] = h
-                    boxes[:, 3] = w
+                    boxes[:, 1] = original_size[0] - x - w
+                    if not self.absolute_angle:
+                        boxes[:, 2] = h
+                        boxes[:, 3] = w
                 elif random_angle == 180:
-                    boxes[:, 0] = im.size[0] - x - w
-                    boxes[:, 1] = im.size[1] - y - h
+                    boxes[:, 0] = original_size[0] - x - w
+                    boxes[:, 1] = original_size[1] - y - h
+
                 elif random_angle == 270:
-                    boxes[:, 0] = im.size[0] - y - h
+                    boxes[:, 0] = original_size[1] - y - h
                     boxes[:, 1] = x
-                    boxes[:, 2] = h
-                    boxes[:, 3] = w
+                    if not self.absolute_angle:
+                        boxes[:, 2] = h
+                        boxes[:, 3] = w
+
+                    pass
+
+                # Adjust theta
+                if self.absolute_angle:
+                    # This is only needed in absolute angle mode.
+                    t += math.radians(random_angle)
+                    rem = torch.remainder(torch.abs(t), math.pi)
+                    sign = torch.sign(t)
+                    t = rem * sign
+
+                boxes[:, 4] = t
 
             # Random horizontal flip
             if random.randint(0, 1):
@@ -418,7 +435,7 @@ class RotatedDataIterator():
 
     def __init__(self, path, resize, max_size, batch_size, stride, world, annotations, training=False,
                  rotate_augment=False, augment_brightness=0.0,
-                 augment_contrast=0.0, augment_hue=0.0, augment_saturation=0.0
+                 augment_contrast=0.0, augment_hue=0.0, augment_saturation=0.0, absolute_angle=False
                  ):
         self.resize = resize
         self.max_size = max_size
@@ -428,7 +445,7 @@ class RotatedDataIterator():
                                           rotate_augment=rotate_augment,
                                           augment_brightness=augment_brightness,
                                           augment_contrast=augment_contrast, augment_hue=augment_hue,
-                                          augment_saturation=augment_saturation)
+                                          augment_saturation=augment_saturation, absolute_angle=absolute_angle)
         self.ids = self.dataset.ids
         self.coco = self.dataset.coco
 

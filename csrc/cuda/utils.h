@@ -21,9 +21,9 @@
  */
 
 #pragma once
-
 #include <stdexcept>
 #include <cstdint>
+#include <thrust/functional.h>
 
 #define CUDA_ALIGN 256
 

@@ -15,9 +15,17 @@ from .loss import FocalLoss, SmoothL1Loss
 class Model(nn.Module):
     'RetinaNet - https://arxiv.org/abs/1708.02002'
 
-    def __init__(self, backbones='ResNet50FPN', classes=80, 
-                ratios=[1.0, 2.0, 0.5], scales=[4 * 2 ** (i / 3) for i in range(3)],
-                angles=None, rotated_bbox=False, anchor_ious=[0.4, 0.5], config={}):
+    def __init__(
+        self, 
+        backbones='ResNet50FPN', 
+        classes=80, 
+        ratios=[1.0, 2.0, 0.5], 
+        scales=[4 * 2 ** (i / 3) for i in range(3)],
+        angles=None, 
+        rotated_bbox=False, 
+        anchor_ious=[0.4, 0.5], 
+        config={}
+    ):
         super().__init__()
 
         if not isinstance(backbones, list):
@@ -242,15 +250,16 @@ class Model(nn.Module):
 
         return model, state
 
-    def export(self, size, batch, precision, calibration_files, calibration_table, verbose, onnx_only=False):
+    def export(self, size, dynamic_batch_opts, precision, calibration_files, calibration_table, verbose, onnx_only=False):
 
-        import torch.onnx.symbolic_opset10 as onnx_symbolic
+        import torch.onnx.symbolic_opset11 as onnx_symbolic
         def upsample_nearest2d(g, input, output_size, *args):
-            # Currently, TRT 5.1/6.0/7.0 ONNX Parser does not support all ONNX ops
+            # Currently, TRT 7.1 ONNX Parser does not support all ONNX ops
             # needed to support dynamic upsampling ONNX forumlation
             # Here we hardcode scale=2 as a temporary workaround
             scales = g.op("Constant", value_t=torch.tensor([1., 1., 2., 2.]))
-            return g.op("Resize", input, scales, mode_s="nearest")
+            empty_tensor = g.op("Constant", value_t=torch.tensor([], dtype=torch.float32))
+            return g.op("Resize", input, empty_tensor, scales, mode_s="nearest", nearest_mode_s="floor")
 
         onnx_symbolic.upsample_nearest2d = upsample_nearest2d
 
@@ -259,7 +268,15 @@ class Model(nn.Module):
         self.exporting = True
         onnx_bytes = io.BytesIO()
         zero_input = torch.zeros([1, 3, *size]).cuda()
-        extra_args = {'opset_version': 10, 'verbose': verbose}
+        input_names = ['input_1']
+        output_names = ['score_1', 'score_2', 'score_3', 'score_4', 'score_5',
+                        'box_1', 'box_2', 'box_3', 'box_4', 'box_5']
+        dynamic_axes = {input_names[0]: {0:'batch'}}
+        for _, name in enumerate(output_names):
+            dynamic_axes[name] = dynamic_axes[input_names[0]]
+        extra_args = {'opset_version': 11, 'verbose': verbose,
+                      'input_names': input_names, 'output_names': output_names,
+                      'dynamic_axes': dynamic_axes} 
         torch.onnx.export(self.cuda(), zero_input, onnx_bytes, **extra_args)
         self.exporting = False
 
@@ -268,11 +285,11 @@ class Model(nn.Module):
 
         # Build TensorRT engine
         model_name = '_'.join([k for k, _ in self.backbones.items()])
+
         anchors = self.get_all_anchors()
-        # Set batch_size = 1 batch/GPU for EXPLICIT_BATCH compatibility in TRT
-        batch = 1
-        return Engine(onnx_bytes.getvalue(), len(onnx_bytes.getvalue()), batch, precision,
-                      self.threshold, self.top_n, anchors, self.rotated_bbox, self.nms, self.detections, 
+
+        return Engine(onnx_bytes.getvalue(), len(onnx_bytes.getvalue()), dynamic_batch_opts, precision,
+                      self.threshold, self.top_n, anchors, self.rotated_bbox, self.nms, self.detections,
                       calibration_files, model_name, calibration_table, verbose)
 
     def get_all_anchors(self):

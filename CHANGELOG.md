@@ -1,5 +1,23 @@
 # NVIDIA ODTK change log
 
+## Version 0.2.5 -- 2020-06-27
+
+### Added
+* `--dynamic-batch-opts` option to `odtk export`.
+  * This parameter allows you to provide TensorRT Optimiation Profile batch sizes for engine export (min, opt, max).
+
+### Changed
+* Updated TensorRT plugins to allow for dynamic batch sizes (see https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#work_dynamic_shapes and https://docs.nvidia.com/deeplearning/tensorrt/api/c_api/classnvinfer1_1_1_i_plugin_v2_dynamic_ext.html).
+
+
+## Version 0.2.4 -- 2020-04-20
+
+### Added
+* `--anchor-ious` option to `odtk train`.
+  * This parameter allows you to adjust the background and foreground anchor IoU threshold. The default values are `[0.4, 0.5].` 
+  * Example `--anchor-ious 0.3 0.5`. This would mean that any anchor with an IoU of less than 0.3 is assigned to background, 
+  and that any anchor with an IoU of greater than 0.5 is assigned to the foreground object, which is atmost one.
+
 ## Version 0.2.3 -- 2020-04-14
 
 ### Added

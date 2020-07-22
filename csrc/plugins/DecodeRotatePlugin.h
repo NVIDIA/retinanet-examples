@@ -37,7 +37,7 @@ using namespace nvinfer1;
 
 namespace retinanet {
 
-class DecodeRotatePlugin : public IPluginV2Ext {
+class DecodeRotatePlugin : public IPluginV2DynamicExt {
   float _score_thresh;
   int _top_n;
   std::vector<float> _anchors;
@@ -47,7 +47,6 @@ class DecodeRotatePlugin : public IPluginV2Ext {
   size_t _width;
   size_t _num_anchors;
   size_t _num_classes;
-
   mutable int size = -1;
 
 protected:
@@ -115,15 +114,25 @@ public:
     return 3;
   }
 
-  Dims getOutputDimensions(int index,
-                                     const Dims *inputs, int nbInputDims) override {
-    assert(nbInputDims == 2);
-    assert(index < this->getNbOutputs());
-    return Dims3(_top_n * (index == 1 ? 6 : 1), 1, 1);
+  DimsExprs getOutputDimensions(int outputIndex, const DimsExprs *inputs,
+    int nbInputs, IExprBuilder &exprBuilder) override 
+  {
+    DimsExprs output(inputs[0]);
+    output.d[1] = exprBuilder.constant(_top_n * (outputIndex == 1 ? 6 : 1));
+    output.d[2] = exprBuilder.constant(1);
+    output.d[3] = exprBuilder.constant(1);
+
+    return output;
   }
 
-  bool supportsFormat(DataType type, PluginFormat format) const override {
-    return type == DataType::kFLOAT && format == PluginFormat::kLINEAR;
+
+  bool supportsFormatCombination(int pos, const PluginTensorDesc *inOut, 
+    int nbInputs, int nbOutputs) override
+  {
+    assert(nbInputs == 2);
+    assert(nbOutputs == 3);
+    assert(pos < 5);
+    return inOut[pos].type == DataType::kFLOAT && inOut[pos].format == nvinfer1::PluginFormat::kLINEAR;
   }
 
 
@@ -131,21 +140,24 @@ public:
 
   void terminate() override {}
 
-  size_t getWorkspaceSize(int maxBatchSize) const override {
+  size_t getWorkspaceSize(const PluginTensorDesc *inputs, 
+    int nbInputs, const PluginTensorDesc *outputs, int nbOutputs) const override 
+  {
     if (size < 0) {
-      size = cuda::decode_rotate(maxBatchSize, nullptr, nullptr, _height, _width, _scale,
-        _num_anchors, _num_classes, _anchors, _score_thresh, _top_n,
+      size = cuda::decode_rotate(inputs->dims.d[0], nullptr, nullptr, _height, _width, _scale,
+        _num_anchors, _num_classes, _anchors, _score_thresh, _top_n, 
         nullptr, 0, nullptr);
     }
     return size;
   }
 
-  int enqueue(int batchSize,
-              const void *const *inputs, void **outputs,
-              void *workspace, cudaStream_t stream) override {
-    return cuda::decode_rotate(batchSize, inputs, outputs, _height, _width, _scale,
+  int enqueue(const PluginTensorDesc *inputDesc, 
+    const PluginTensorDesc *outputDesc, const void *const *inputs, 
+    void *const *outputs, void *workspace, cudaStream_t stream) override 
+  {
+    return cuda::decode_rotate(inputDesc->dims.d[0], inputs, outputs, _height, _width, _scale,
       _num_anchors, _num_classes, _anchors, _score_thresh, _top_n,
-      workspace, getWorkspaceSize(batchSize), stream);
+      workspace, getWorkspaceSize(inputDesc, 2, outputDesc, 3), stream);
   }
 
   void destroy() override {
@@ -156,42 +168,31 @@ public:
     return RETINANET_PLUGIN_NAMESPACE;
   }
 
-  void setPluginNamespace(const char *N) override {
+  void setPluginNamespace(const char *N) override {}
 
-  }
-
-  // IPluginV2Ext Methods
   DataType getOutputDataType(int index, const DataType* inputTypes, int nbInputs) const
   {
     assert(index < 3);
     return DataType::kFLOAT;
   }
 
-  bool isOutputBroadcastAcrossBatch(int outputIndex, const bool* inputIsBroadcasted,
-    int nbInputs) const { return false; }
-
-  bool canBroadcastInputAcrossBatch(int inputIndex) const { return false; }
-
-  void configurePlugin(const Dims* inputDims, int nbInputs, const Dims* outputDims, int nbOutputs,
-    const DataType* inputTypes, const DataType* outputTypes, const bool* inputIsBroadcast,
-    const bool* outputIsBroadcast, PluginFormat floatFormat, int maxBatchSize)
+  void configurePlugin(const DynamicPluginTensorDesc *in, int nbInputs, 
+    const DynamicPluginTensorDesc *out, int nbOutputs)
   {
-    assert(*inputTypes == nvinfer1::DataType::kFLOAT &&
-      floatFormat == nvinfer1::PluginFormat::kLINEAR);
     assert(nbInputs == 2);
     assert(nbOutputs == 3);
-    auto const& scores_dims = inputDims[0];
-    auto const& boxes_dims = inputDims[1];
-    assert(scores_dims.d[1] == boxes_dims.d[1]);
+    auto const& scores_dims = in[0].desc.dims;
+    auto const& boxes_dims = in[1].desc.dims;
     assert(scores_dims.d[2] == boxes_dims.d[2]);
-    _height = scores_dims.d[1];
-    _width = scores_dims.d[2];
-    _num_anchors = boxes_dims.d[0] / 6;
-    _num_classes = scores_dims.d[0] / _num_anchors;
+    assert(scores_dims.d[3] == boxes_dims.d[3]);
+    _height = scores_dims.d[2];
+    _width = scores_dims.d[3];
+    _num_anchors = boxes_dims.d[1] / 6; 
+    _num_classes = scores_dims.d[1] / _num_anchors;
   }
 
-  IPluginV2Ext *clone() const override {
-    return new DecodeRotatePlugin(_score_thresh, _top_n, _anchors, _scale, _height, _width,
+  IPluginV2DynamicExt *clone() const override {
+    return new DecodeRotatePlugin(_score_thresh, _top_n, _anchors, _scale, _height, _width, 
       _num_anchors, _num_classes);
   }
 
@@ -223,13 +224,13 @@ public:
     return RETINANET_PLUGIN_NAMESPACE;
   }
 
-  IPluginV2 *deserializePlugin (const char *name, const void *serialData, size_t serialLength) override {
+  IPluginV2DynamicExt *deserializePlugin (const char *name, const void *serialData, size_t serialLength) override {
     return new DecodeRotatePlugin(serialData, serialLength);
   }
 
   void setPluginNamespace(const char *N) override {}
   const PluginFieldCollection *getFieldNames() override { return nullptr; }
-  IPluginV2 *createPlugin (const char *name, const PluginFieldCollection *fc) override { return nullptr; }
+  IPluginV2DynamicExt *createPlugin (const char *name, const PluginFieldCollection *fc) override { return nullptr; }
 };
 
 REGISTER_TENSORRT_PLUGIN(DecodeRotatePluginCreator);

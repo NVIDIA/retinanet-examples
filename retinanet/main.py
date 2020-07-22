@@ -58,6 +58,8 @@ def parse(args):
                               help='number of iterations between each validation', default=8000)
     parser_train.add_argument('--with-dali', help='use dali for data loading', action='store_true')
     parser_train.add_argument('--augment-rotate', help='use four-fold rotational augmentation', action='store_true')
+    parser_train.add_argument('--augment-free-rotate', type=float, metavar='value value', nargs=2, default=[0, 0],
+                              help='rotate images by an arbitrary angle, between min and max (in degrees)')
     parser_train.add_argument('--augment-brightness', metavar='value', type=float,
                               help='adjust the brightness of the image.', default=0.002)
     parser_train.add_argument('--augment-contrast', metavar='value', type=float,
@@ -78,6 +80,9 @@ def parse(args):
                               help='anchor angles for rotated boxes', default=None)
     parser_train.add_argument('--anchor-ious', metavar='value value', type=float, nargs=2,
                               help='anchor/bbox overlap threshold', default=[0.4, 0.5])
+    parser_train.add_argument('--absolute-angle', help='regress absolute angle (rather than -45 to 45 degrees.',
+                              action='store_true')
+
     parser_infer = subparsers.add_parser('infer', help='run inference')
     parser_infer.add_argument('model', type=str, help='path to model')
     parser_infer.add_argument('--images', metavar='path', type=str, help='path to images', default='.')
@@ -99,12 +104,10 @@ def parse(args):
     parser_export.add_argument('--size', metavar='height width', type=int, nargs='+',
                                help='input size (square) or sizes (h w) to use when generating TensorRT engine',
                                default=[1280])
-    parser_export.add_argument('--batch', metavar='size', type=int, help='max batch size to use for TensorRT engine',
-                               default=2)
     parser_export.add_argument('--full-precision', help='export in full instead of half precision', action='store_true')
     parser_export.add_argument('--int8', help='calibrate model and export in int8 precision', action='store_true')
     parser_export.add_argument('--calibration-batches', metavar='size', type=int,
-                               help='number of batches to use for int8 calibration', default=10)
+                               help='number of batches to use for int8 calibration', default=2)
     parser_export.add_argument('--calibration-images', metavar='path', type=str,
                                help='path to calibration images to use for int8 calibration', default="")
     parser_export.add_argument('--calibration-table', metavar='path', type=str,
@@ -113,6 +116,8 @@ def parse(args):
     parser_export.add_argument('--verbose', help='enable verbose logging', action='store_true')
     parser_export.add_argument('--rotated-bbox', help='inference using a rotated bounding box model',
                                action='store_true')
+    parser_export.add_argument('--dynamic-batch-opts', help='Profile batch sizes for tensorrt engine export (min, opt, max)',
+                               metavar='value value value', type=int, nargs=3, default=[1,8,16])
 
     return parser.parse_args(args)
 
@@ -164,7 +169,7 @@ def worker(rank, args, world, model, state):
         torch.cuda.set_device(rank)
         torch.distributed.init_process_group(backend='nccl', init_method='env://')
 
-        if args.batch % world != 0:
+        if (args.command != 'export') and (args.batch % world != 0):
             raise RuntimeError('Batch size should be a multiple of the number of GPUs')
 
     if model and model.angles is not None:
@@ -180,7 +185,7 @@ def worker(rank, args, world, model, state):
                     rotate_augment=args.augment_rotate,
                     augment_brightness=args.augment_brightness, augment_contrast=args.augment_contrast,
                     augment_hue=args.augment_hue, augment_saturation=args.augment_saturation,
-                    regularization_l2=args.regularization_l2, rotated_bbox=args.rotated_bbox)
+                    regularization_l2=args.regularization_l2, rotated_bbox=args.rotated_bbox, absolute_angle=args.absolute_angle)
 
     elif args.command == 'infer':
         if model is None:
@@ -205,11 +210,16 @@ def worker(rank, args, world, model, state):
                 for ex in file_extensions:
                     calibration_files += glob.glob("{}/*{}".format(args.calibration_images, ex), recursive=True)
                 # Only need enough images for specified num of calibration batches
-                if len(calibration_files) >= args.calibration_batches * args.batch:
-                    calibration_files = calibration_files[:(args.calibration_batches * args.batch)]
+                if len(calibration_files) >= args.calibration_batches * args.dynamic_batch_opts[1]:
+                    calibration_files = calibration_files[:(args.calibration_batches * args.dynamic_batch_opts[1])]
                 else:
-                    print('Only found enough images for {} batches. Continuing anyway...'.format(
-                        len(calibration_files) // args.batch))
+                    # Number of images for calibration must be greater than or equal to the kOPT optimization profile
+                    if len(calibration_files) >= args.dynamic_batch_opts[1]:
+                        print('Only found enough images for {} batches. Continuing anyway...'.format(
+                            len(calibration_files) // args.dynamic_batch_opts[1]))
+                    else:
+                        raise RuntimeError('Not enough images found for calibration. ({} < {})'
+                                            .format(len(calibration_files), args.dynamic_batch_opts[1]))
 
                 random.shuffle(calibration_files)
 
@@ -219,8 +229,8 @@ def worker(rank, args, world, model, state):
         elif not args.full_precision:
             precision = "FP16"
 
-        exported = model.export(input_size, args.batch, precision, calibration_files, args.calibration_table,
-                                args.verbose, onnx_only=onnx_only)
+        exported = model.export(input_size, args.dynamic_batch_opts, precision, calibration_files, 
+                                args.calibration_table, args.verbose, onnx_only=onnx_only)
 
         np.savetxt(os.path.splitext(args.export) + "_anchors.txt", model.get_all_anchors(), fmt='%1.1f')
 
