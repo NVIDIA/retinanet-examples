@@ -207,19 +207,11 @@ __global__ void nms_rotate_kernel(const int num_per_thread, const float threshol
           float2 pad;
 #pragma unroll
           for ( int b = 0; b < kCorners; b++ ) {
-<<<<<<< HEAD
-            if ((iboxc[b].x * ibox.c - iboxc[b].y * ibox.s) + icent.x == (mboxc[b].x * mbox.c - mboxc[b].y * mbox.s) + mcent.x)
-              pad.x = 0.001f;
-            else
-              pad.x = 0.0f;
-            if ((iboxc[b].y * ibox.c + iboxc[b].x * ibox.s) + icent.y == (mboxc[b].y * mbox.c + mboxc[b].x * mbox.s) + mcent.y)
-=======
             if ( ( iboxc[b].x * ibox.c - iboxc[b].y * ibox.s ) + icent.x == ( mboxc[b].x * mbox.c - mboxc[b].y * mbox.s ) + mcent.x )
               pad.x = 0.001f;
             else
               pad.x = 0.0f;
             if ( ( iboxc[b].y * ibox.c + iboxc[b].x * ibox.s ) + icent.y == ( mboxc[b].y * mbox.c + mboxc[b].x * mbox.s ) + mcent.y )
->>>>>>> 69d82e8... Fix IoU edge case
               pad.y = 0.001f;
             else
               pad.y = 0.0f;
@@ -344,17 +336,6 @@ __global__ void iou_cuda_kernel(int const numBoxes, int const numAnchors,
     float2 pad;
 #pragma unroll
     for ( int b = 0; b < kCorners; b++ ) {
-<<<<<<< HEAD
-      if (b_box_vals[(static_cast<int>(tid/numAnchors) * kCorners + b)].x == a_box_vals[(tid * kCorners + b) % (numAnchors * kCorners)].x)
-        pad.x = 0.001f;
-      else
-        pad.x = 0.0f;
-      if (b_box_vals[(static_cast<int>(tid/numAnchors) * kCorners + b)].y == a_box_vals[(tid * kCorners + b) % (numAnchors * kCorners )].y)
-        pad.y = 0.001f;
-      else
-        pad.y = 0.0f;
-      intersection[b] = padfloat2( b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )], pad);
-=======
       if ( b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )].x == a_box_vals[( tid * kCorners + b ) % ( numAnchors * kCorners )].x )
         pad.x = 0.001f;
       else
@@ -364,7 +345,6 @@ __global__ void iou_cuda_kernel(int const numBoxes, int const numAnchors,
       else
         pad.y = 0.0f;
       intersection[b] = padfloat2( b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )], pad );
->>>>>>> 69d82e8... Fix IoU edge case
       rect1[b]        = b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )];
       rect1_shift[b]  = b_box_vals[( static_cast<int>( tid / numAnchors ) * kCorners + b )];
       rect2[b]        = a_box_vals[( tid * kCorners + b ) % ( numAnchors * kCorners )];
