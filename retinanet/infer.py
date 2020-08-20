@@ -151,7 +151,8 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
             if 'categories' in data_iterator.coco.dataset:
                 detections['categories'] = data_iterator.coco.dataset['categories']
             if detections_file:
-                json.dump(detections, open(detections_file, 'w'), indent=4)
+                for d_file in detections_file:
+                    json.dump(detections, open(d_file, 'w'), indent=4)
 
             # Evaluate model on dataset
             if 'annotations' in data_iterator.coco.dataset:
