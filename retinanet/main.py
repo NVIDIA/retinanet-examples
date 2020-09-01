@@ -140,7 +140,7 @@ def load_model(args, verbose=False):
         model = None
 
     else:
-        raise RuntimeError('Invalid model format "{}"!'.format(args.ext))
+        raise RuntimeError('Invalid model format "{}"!'.format(ext))
 
     state['path'] = args.model
     return model, state
