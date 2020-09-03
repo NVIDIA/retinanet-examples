@@ -169,37 +169,34 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
 
             if val_annotations and (iteration == iterations or iteration % val_iterations == 0):
                 stats = infer(model, val_path, None, resize, max_size, batch_size, annotations=val_annotations,
-                      mixed_precision=mixed_precision, is_master=is_master, world=world, use_dali=use_dali,
-                      is_validation=True, verbose=False, rotated_bbox=rotated_bbox)
+                              mixed_precision=mixed_precision, is_master=is_master, world=world, use_dali=use_dali,
+                              is_validation=True, verbose=False, rotated_bbox=rotated_bbox)
 
                 if logdir is not None and stats is not None:
                     writer.add_scalar(
-                        'Detection_Precision/mAP', stats[0], global_step=iteration, display_name='Detection_Precision/mAP')
-                    writer.add_scalar('Detection_Precision/mAP_0.50IUO',
-                                    stats[1], global_step=iteration, display_name='Detection_Precision/mAP@0.50IUO')
-                    writer.add_scalar('Detection_Precision/mAP_0.75IOU',
-                                    stats[2], global_step=iteration, display_name='Detection_Precision/mAP@0.75IOU')
-                    writer.add_scalar('Detection_Precision/mAP_small',
-                                    stats[3], global_step=iteration, display_name='Detection_Precision/mAP (small)')
-                    writer.add_scalar('Detection_Precision/mAP_medium',
-                                    stats[4], global_step=iteration, display_name='Detection_Precision/mAP (medium)')
-                    writer.add_scalar('Detection_Precision/mAP_large',
-                                    stats[5], global_step=iteration, display_name='Detection_Precision/mAP (large)')
+                        'Detection_Precision/mAP', stats[0], iteration)
                     writer.add_scalar(
-                        'Detection_Recall/mAR_1', stats[6], global_step=iteration, display_name='Detection_Recall/mAR@1')
+                        'Detection_Precision/mAP@0.50IUO', stats[1], iteration)
                     writer.add_scalar(
-                        'Detection_Recall/mAR_10', stats[7], global_step=iteration, display_name='Detection_Recall/mAR@10')
+                        'Detection_Precision/mAP@0.75IOU', stats[2], iteration)
                     writer.add_scalar(
-                        'Detection_Recall/mAR_100', stats[8], global_step=iteration, display_name='Detection_Recall/mAR@100')
+                        'Detection_Precision/mAP (small)', stats[3], iteration)
                     writer.add_scalar(
-                        'Detection_Recall/mAR_small',
-                        stats[9], global_step=iteration, display_name='Detection_Recall/mAR (small)')
+                        'Detection_Precision/mAP (medium)', stats[4], iteration)
                     writer.add_scalar(
-                        'Detection_Recall/mAR_medium',
-                        stats[10], global_step=iteration, display_name='Detection_Recall/mAR (medium)')
+                        'Detection_Precision/mAP (large)', stats[5], iteration)
                     writer.add_scalar(
-                        'Detection_Recall/mAR_large',
-                        stats[11], global_step=iteration, display_name='Detection_Recall/mAR (large)')
+                        'Detection_Recall/mAR (max 1 Dets)', stats[6], iteration)
+                    writer.add_scalar(
+                        'Detection_Recall/mAR (max 10 Dets)', stats[7], iteration)
+                    writer.add_scalar(
+                        'Detection_Recall/mAR (max 100 Dets)', stats[8], iteration)
+                    writer.add_scalar(
+                        'Detection_Recall/mAR (small)', stats[9], iteration)
+                    writer.add_scalar(
+                        'Detection_Recall/mAR (medium)', stats[10], iteration)
+                    writer.add_scalar(
+                        'Detection_Recall/mAR (large)', stats[11], iteration)
                 model.train()
 
             if (iteration==iterations and not rotated_bbox) or (iteration>iterations and rotated_bbox):
