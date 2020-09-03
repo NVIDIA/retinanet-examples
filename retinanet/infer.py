@@ -165,5 +165,6 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
                     coco_eval.evaluate()
                     coco_eval.accumulate()
                 coco_eval.summarize()
+                return coco_eval.stats
         else:
             print('No detections!')
