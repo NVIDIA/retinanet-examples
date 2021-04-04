@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
 		precision = "INT8";
 
 	cout << "Building engine..." << endl;
-	auto engine = retinanet::Engine(buffer, size, dynamic_batch_opts, precision, score_thresh, top_n,
+	auto engine = odtk::Engine(buffer, size, dynamic_batch_opts, precision, score_thresh, top_n,
 		anchors, ROTATED, nms_thresh, detections_per_im, calibration_files, model_name, calibration_table, verbose, workspace_size);
 	engine.save(string(argv[2]));
 

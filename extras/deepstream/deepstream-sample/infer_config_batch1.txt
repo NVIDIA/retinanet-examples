@@ -58,7 +58,7 @@ parse-func=0
 is-classifier=0
 output-blob-names=boxes;scores;classes
 parse-bbox-func-name=NvDsInferParseRetinaNet
-custom-lib-path=build/libnvdsparsebbox_retinanet.so
+custom-lib-path=build/libnvdsparsebbox_odtk.so
 #enable-dbscan=1
 
 

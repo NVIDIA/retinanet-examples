@@ -40,7 +40,7 @@
 using namespace nvinfer1;
 using namespace nvonnxparser;
 
-namespace retinanet {
+namespace odtk {
 
 class Logger : public ILogger {
 public:
@@ -49,7 +49,7 @@ public:
     }
 
     void log(Severity severity, const char *msg) override {
-        if (_verbose || (severity != Severity::kINFO) && (severity != Severity::kVERBOSE))
+        if (_verbose || ((severity != Severity::kINFO) && (severity != Severity::kVERBOSE)))
             cout << msg << endl;
     }
 
@@ -74,7 +74,7 @@ void Engine::_load(const string &path) {
 
 void Engine::_prepare() {
     _context = _engine->createExecutionContext();
-    _context->setOptimizationProfile(0);
+    _context->setOptimizationProfileAsync(0, _stream);
     cudaStreamCreate(&_stream);
 }
 

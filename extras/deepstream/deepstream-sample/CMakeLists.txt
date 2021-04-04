@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5.1)
 
-project(deepstream-retinanet)
+project(deepstream-odtk)
 enable_language(CXX)
 include(FindCUDA)
 
@@ -21,15 +21,15 @@ if(NOT DEFINED ARCH)
   set(ARCH "sm_70")
 endif(NOT DEFINED ARCH)
 
-cuda_add_library(nvdsparsebbox_retinanet SHARED
+cuda_add_library(nvdsparsebbox_odtk SHARED
   ../../../csrc/cuda/decode.h
   ../../../csrc/cuda/decode.cu
   ../../../csrc/cuda/nms.h
   ../../../csrc/cuda/nms.cu
   ../../../csrc/cuda/utils.h
   ../../../csrc/engine.cpp
-  nvdsparsebbox_retinanet.cpp
+  nvdsparsebbox_odtk.cpp
   OPTIONS -arch ${ARCH} -std=c++14 --expt-extended-lambda
 )
 include_directories(${OpenCV_INCLUDE_DIRS})
-target_link_libraries(nvdsparsebbox_retinanet ${CUDA_LIBRARIES} nvinfer nvinfer_plugin nvonnxparser ${OpenCV_LIBS})
+target_link_libraries(nvdsparsebbox_odtk ${CUDA_LIBRARIES} nvinfer nvinfer_plugin nvonnxparser ${OpenCV_LIBS})

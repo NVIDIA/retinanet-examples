@@ -165,7 +165,7 @@ class DaliDataIterator():
                     # Rescale boxes
                     b_arr = dali_boxes.at(batch)
                     num_dets = b_arr.shape[0]
-                    if num_dets is not 0:
+                    if num_dets!=0:
                         pyt_bbox = torch.from_numpy(b_arr).float()
 
                         pyt_bbox[:, 0] *= float(prior_size[1])
@@ -179,7 +179,7 @@ class DaliDataIterator():
 
                     # Arrange labels in target tensor
                     l_arr = dali_labels.at(batch)
-                    if num_dets is not 0:
+                    if num_dets!=0:
                         pyt_label = torch.from_numpy(l_arr).float()
                         pyt_label -= 1  # Rescale labels to [0,79] instead of [1,80]
                         pyt_targets[batch, :num_dets, 4] = pyt_label.squeeze()

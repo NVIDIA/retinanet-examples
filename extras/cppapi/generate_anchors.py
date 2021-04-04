@@ -1,5 +1,5 @@
 import numpy as np
-from retinanet.box import generate_anchors, generate_anchors_rotated
+from odtk.box import generate_anchors, generate_anchors_rotated
 
 # Generates anchors for export.cpp
 

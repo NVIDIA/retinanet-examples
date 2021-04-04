@@ -11,6 +11,7 @@ import numpy as np
 import math
 import torch
 
+
 def order_points(pts):
     pts_reorder = []
 
@@ -32,8 +33,8 @@ def order_points(pts):
 def rotate_boxes(boxes, points=False):
     '''
     Rotate target bounding boxes
-    
-    Input:  
+
+    Input:
         Target boxes (xmin_ymin, width_height, theta)
     Output:
         boxes_axis (xmin_ymin, xmax_ymax, theta)
@@ -75,9 +76,8 @@ def rotate_boxes(boxes, points=False):
     boxes_axis = torch.cat([boxes[:, :2], boxes[:, :2] + boxes[:, 2:4] - 1,
         torch.sin(boxes[:,-1, None]), torch.cos(boxes[:,-1, None])], 1)
     boxes_rotated = order_points(torch.stack([xy0R,xy1R,xy2R,xy3R],dim = 1)).view(-1,8)
-    
-    return boxes_axis, boxes_rotated
 
+    return boxes_axis, boxes_rotated
 
 
 def rotate_box(bbox):

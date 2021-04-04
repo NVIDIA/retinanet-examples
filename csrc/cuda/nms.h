@@ -22,7 +22,7 @@
 
 #pragma once
 
-namespace retinanet {
+namespace odtk {
 namespace cuda {
 
 int nms(int batchSize,

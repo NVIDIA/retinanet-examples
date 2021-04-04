@@ -5,15 +5,15 @@ if [ $# -ne 2 ]; then
     exit 1
 fi
 
-tmp="/tmp/retinanet"
+tmp="/tmp/odtk"
 
 tests=(
-    "retinanet train ${tmp}/model.pth --images $1 --annotations $2 --max-size 640 --override --iters 100 --backbone ResNet18FPN ResNet50FPN"
-    "retinanet train ${tmp}/model.pth --images $1 --annotations $2 --max-size 640 --override --iters 100"
-    "retinanet train ${tmp}/model.pth --fine-tune ${tmp}/model.pth --images $1 --annotations $2 --max-size 640 --override --iters 100"
-    "retinanet infer ${tmp}/model.pth --images ${tmp}/test_images --max-size 640"
-    "retinanet export ${tmp}/model.pth ${tmp}/engine.plan --size 640"
-    "retinanet infer ${tmp}/engine.plan --images ${tmp}/test_images --max-size 640"
+    "odtk train ${tmp}/model.pth --images $1 --annotations $2 --max-size 640 --override --iters 100 --backbone ResNet18FPN ResNet50FPN"
+    "odtk train ${tmp}/model.pth --images $1 --annotations $2 --max-size 640 --override --iters 100"
+    "odtk train ${tmp}/model.pth --fine-tune ${tmp}/model.pth --images $1 --annotations $2 --max-size 640 --override --iters 100"
+    "odtk infer ${tmp}/model.pth --images ${tmp}/test_images --max-size 640"
+    "odtk export ${tmp}/model.pth ${tmp}/engine.plan --size 640"
+    "odtk infer ${tmp}/engine.plan --images ${tmp}/test_images --max-size 640"
 )
 
 start=`date +%s`

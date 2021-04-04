@@ -39,7 +39,7 @@
 #include "cuda/nms_iou.h"
 #include <stdio.h>
 
-#define CHECK_CUDA(x) AT_ASSERTM(x.type().is_cuda(), #x " must be a CUDA tensor")
+#define CHECK_CUDA(x) AT_ASSERTM(x.is_cuda(), #x " must be a CUDA tensor")
 #define CHECK_CONTIGUOUS(x) AT_ASSERTM(x.is_contiguous(), #x " must be contiguous")
 #define CHECK_INPUT(x) CHECK_CUDA(x); CHECK_CONTIGUOUS(x)
 
@@ -59,7 +59,7 @@ vector<at::Tensor> iou(at::Tensor boxes, at::Tensor anchors) {
     vector<void *> inputs = {boxes.data_ptr(), anchors.data_ptr()};
     vector<void *> outputs = {iou_vals.data_ptr()};
 
-    retinanet::cuda::iou(inputs.data(), outputs.data(), num_boxes, num_anchors, at::cuda::getCurrentCUDAStream());
+    odtk::cuda::iou(inputs.data(), outputs.data(), num_boxes, num_anchors, at::cuda::getCurrentCUDAStream());
 
     auto shape = std::vector<int64_t>{num_anchors, num_boxes};
 
@@ -89,24 +89,24 @@ vector<at::Tensor> decode(at::Tensor cls_head, at::Tensor box_head,
 
     if(!rotated) {
         // Create scratch buffer
-        int size = retinanet::cuda::decode(batch, nullptr, nullptr, height, width, scale,
+        int size = odtk::cuda::decode(batch, nullptr, nullptr, height, width, scale,
             num_anchors, num_classes, anchors, score_thresh, top_n, nullptr, 0, nullptr);
         auto scratch = at::zeros({size}, options.dtype(torch::kUInt8));
 
         // Decode boxes
-        retinanet::cuda::decode(batch, inputs.data(), outputs.data(), height, width, scale,
+        odtk::cuda::decode(batch, inputs.data(), outputs.data(), height, width, scale,
             num_anchors, num_classes, anchors, score_thresh, top_n,
             scratch.data_ptr(), size, at::cuda::getCurrentCUDAStream());
     
     }
     else {
         // Create scratch buffer
-        int size = retinanet::cuda::decode_rotate(batch, nullptr, nullptr, height, width, scale,
+        int size = odtk::cuda::decode_rotate(batch, nullptr, nullptr, height, width, scale,
             num_anchors, num_classes, anchors, score_thresh, top_n, nullptr, 0, nullptr);
         auto scratch = at::zeros({size}, options.dtype(torch::kUInt8));
 
         // Decode boxes
-        retinanet::cuda::decode_rotate(batch, inputs.data(), outputs.data(), height, width, scale,
+        odtk::cuda::decode_rotate(batch, inputs.data(), outputs.data(), height, width, scale,
             num_anchors, num_classes, anchors, score_thresh, top_n,
             scratch.data_ptr(), size, at::cuda::getCurrentCUDAStream());
     }
@@ -134,22 +134,22 @@ vector<at::Tensor> nms(at::Tensor scores, at::Tensor boxes, at::Tensor classes,
 
     if(!rotated) {
         // Create scratch buffer
-        int size = retinanet::cuda::nms(batch, nullptr, nullptr, count,
+        int size = odtk::cuda::nms(batch, nullptr, nullptr, count,
             detections_per_im, nms_thresh, nullptr, 0, nullptr);
         auto scratch = at::zeros({size}, options.dtype(torch::kUInt8));
 
         // Perform NMS
-        retinanet::cuda::nms(batch, inputs.data(), outputs.data(), count, detections_per_im, 
+        odtk::cuda::nms(batch, inputs.data(), outputs.data(), count, detections_per_im, 
             nms_thresh, scratch.data_ptr(), size, at::cuda::getCurrentCUDAStream());
     }
     else {
         // Create scratch buffer
-        int size = retinanet::cuda::nms_rotate(batch, nullptr, nullptr, count,
+        int size = odtk::cuda::nms_rotate(batch, nullptr, nullptr, count,
             detections_per_im, nms_thresh, nullptr, 0, nullptr);
         auto scratch = at::zeros({size}, options.dtype(torch::kUInt8));
 
         // Perform NMS
-        retinanet::cuda::nms_rotate(batch, inputs.data(), outputs.data(), count,
+        odtk::cuda::nms_rotate(batch, inputs.data(), outputs.data(), count,
             detections_per_im, nms_thresh, scratch.data_ptr(), size, at::cuda::getCurrentCUDAStream());
     }
     
@@ -157,7 +157,7 @@ vector<at::Tensor> nms(at::Tensor scores, at::Tensor boxes, at::Tensor classes,
     return {nms_scores, nms_boxes, nms_classes};
 }
 
-vector<at::Tensor> infer(retinanet::Engine &engine, at::Tensor data, bool rotated=false) {
+vector<at::Tensor> infer(odtk::Engine &engine, at::Tensor data, bool rotated=false) {
     CHECK_INPUT(data);
 
     int num_boxes = (!rotated) ? 4 : 6;
@@ -182,17 +182,17 @@ vector<at::Tensor> infer(retinanet::Engine &engine, at::Tensor data, bool rotate
 
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    pybind11::class_<retinanet::Engine>(m, "Engine")
+    pybind11::class_<odtk::Engine>(m, "Engine")
         .def(pybind11::init<const char *, size_t, const vector<int>&, string, float, int,
             const vector<vector<float>>&, bool, float, int, const vector<string>&, string, string, bool>())
-        .def("save", &retinanet::Engine::save)
-        .def("infer", &retinanet::Engine::infer)
-        .def_property_readonly("stride", &retinanet::Engine::getStride)
-        .def_property_readonly("input_size", &retinanet::Engine::getInputSize)
+        .def("save", &odtk::Engine::save)
+        .def("infer", &odtk::Engine::infer)
+        .def_property_readonly("stride", &odtk::Engine::getStride)
+        .def_property_readonly("input_size", &odtk::Engine::getInputSize)
         .def_static("load", [](const string &path) {
-            return new retinanet::Engine(path);
+            return new odtk::Engine(path);
         })
-        .def("__call__", [](retinanet::Engine &engine, at::Tensor data, bool rotated=false) {
+        .def("__call__", [](odtk::Engine &engine, at::Tensor data, bool rotated=false) {
             return infer(engine, data, rotated);
         });
     m.def("decode", &decode);

@@ -97,7 +97,7 @@ If using the `--rotated-bbox` flag for rotated detections, add an additional flo
 
 ### Anchors
 
-As with all single shot detectors, the anchor boxes may need to be adjusted to suit your dataset. You may need to adjust the anchors in `model_rotated.py`
+As with all single shot detectors, the anchor boxes may need to be adjusted to suit your dataset. You may need to adjust the anchors in `odtk/model.py`
 
 The default anchors are:
 

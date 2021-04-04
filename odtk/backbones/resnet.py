@@ -15,6 +15,7 @@ class ResNet(vrn.ResNet):
 
         kwargs = {'block': bottleneck, 'layers': layers, 'groups': groups, 'width_per_group': width_per_group}
         super().__init__(**kwargs)
+        self.unused_modules = ['fc']
 
     def initialize(self):
         if self.url:

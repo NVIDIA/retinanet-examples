@@ -32,7 +32,7 @@
 using namespace std;
 using namespace nvinfer1;
 
-namespace retinanet {
+namespace odtk {
 
 // RetinaNet wrapper around TensorRT CUDA engine
 class Engine {

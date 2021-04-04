@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	cout << "Loading engine..." << endl;
-	auto engine = retinanet::Engine(argv[1]);
+	auto engine = odtk::Engine(argv[1]);
 
 	cout << "Preparing data..." << endl;
 	auto image = imread(argv[2], IMREAD_COLOR);

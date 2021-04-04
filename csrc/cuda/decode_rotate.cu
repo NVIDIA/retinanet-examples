@@ -36,7 +36,7 @@
 #include <cub/device/device_radix_sort.cuh>
 #include <cub/iterator/counting_input_iterator.cuh>
 
-namespace retinanet {
+namespace odtk {
 namespace cuda {
 
 int decode_rotate(int batch_size,

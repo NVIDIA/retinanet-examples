@@ -7,9 +7,9 @@ import torch.cuda
 import torch.distributed
 import torch.multiprocessing
 
-from retinanet import infer, train, utils
-from retinanet.model import Model
-from retinanet._C import Engine
+from odtk import infer, train, utils
+from odtk.model import Model
+from odtk._C import Engine
 
 
 def parse(args):
@@ -56,6 +56,7 @@ def parse(args):
     parser_train.add_argument('--logdir', metavar='logdir', type=str, help='directory where to write logs')
     parser_train.add_argument('--val-iters', metavar='number', type=int,
                               help='number of iterations between each validation', default=8000)
+    parser_train.add_argument('--no-apex', help='use Pytorch native AMP and DDP', action='store_true')
     parser_train.add_argument('--with-dali', help='use dali for data loading', action='store_true')
     parser_train.add_argument('--augment-rotate', help='use four-fold rotational augmentation', action='store_true')
     parser_train.add_argument('--augment-free-rotate', type=float, metavar='value value', nargs=2, default=[0, 0],
@@ -87,6 +88,7 @@ def parse(args):
     parser_infer.add_argument('--batch', metavar='size', type=int, help='batch size', default=2 * devcount)
     parser_infer.add_argument('--resize', metavar='scale', type=int, help='resize to given size', default=800)
     parser_infer.add_argument('--max-size', metavar='max', type=int, help='maximum resizing size', default=1333)
+    parser_infer.add_argument('--no-apex', help='use Pytorch native AMP and DDP', action='store_true')
     parser_infer.add_argument('--with-dali', help='use dali for data loading', action='store_true')
     parser_infer.add_argument('--full-precision', help='inference in full precision', action='store_true')
     parser_infer.add_argument('--rotated-bbox', help='inference using a rotated bounding box model',
@@ -129,6 +131,10 @@ def load_model(args, verbose=False):
         model = Model(backbones=args.backbone, classes=args.classes, rotated_bbox=args.rotated_bbox,
                       anchor_ious=args.anchor_ious)
         model.initialize(args.fine_tune)
+        # Freeze unused params from training
+        for n, p in model.named_parameters():
+            if any(i in n for i in model.unused_modules):
+                p.requires_grad = False
         if verbose: print(model)
 
     elif ext == '.pth' or ext == '.torch':
@@ -140,7 +146,7 @@ def load_model(args, verbose=False):
         model = None
 
     else:
-        raise RuntimeError('Invalid model format "{}"!'.format(args.ext))
+        raise RuntimeError('Invalid model format "{}"!'.format(ext))
 
     state['path'] = args.model
     return model, state
@@ -172,7 +178,7 @@ def worker(rank, args, world, model, state):
                     args.val_images or args.images, args.val_annotations, args.resize, args.max_size, args.jitter,
                     args.batch, int(args.iters * args.schedule), args.val_iters, not args.full_precision, args.lr,
                     args.warmup, [int(m * args.schedule) for m in args.milestones], args.gamma,
-                    is_master=(rank == 0), world=world, use_dali=args.with_dali,
+                    rank, world=world, no_apex=args.no_apex, use_dali=args.with_dali,
                     metrics_url=args.post_metrics, logdir=args.logdir, verbose=(rank == 0),
                     rotate_augment=args.augment_rotate,
                     augment_brightness=args.augment_brightness, augment_contrast=args.augment_contrast,
@@ -186,8 +192,8 @@ def worker(rank, args, world, model, state):
 
         infer.infer(model, args.images, args.output, args.resize, args.max_size, args.batch,
                     annotations=args.annotations, mixed_precision=not args.full_precision,
-                    is_master=(rank == 0), world=world, use_dali=args.with_dali, verbose=(rank == 0),
-                    rotated_bbox=args.rotated_bbox)
+                    is_master=(rank == 0), world=world, no_apex=args.no_apex, use_dali=args.with_dali,
+                    verbose=(rank == 0), rotated_bbox=args.rotated_bbox)
 
     elif args.command == 'export':
         onnx_only = args.export.split('.')[-1] == 'onnx'
@@ -221,7 +227,7 @@ def worker(rank, args, world, model, state):
         elif not args.full_precision:
             precision = "FP16"
 
-        exported = model.export(input_size, args.dynamic_batch_opts, precision, calibration_files, 
+        exported = model.export(input_size, args.dynamic_batch_opts, precision, calibration_files,
                                 args.calibration_table, args.verbose, onnx_only=onnx_only)
         if onnx_only:
             with open(args.export, 'wb') as out:
@@ -231,7 +237,7 @@ def worker(rank, args, world, model, state):
 
 
 def main(args=None):
-    'Entry point for the retinanet command'
+    'Entry point for the odtk command'
 
     args = parse(args or sys.argv[1:])
 

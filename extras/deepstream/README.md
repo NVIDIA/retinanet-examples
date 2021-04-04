@@ -26,24 +26,24 @@ tar -xvf deepstream_sdk_v4.0.2_x86_64.tbz2 -C DeepStream_Release/
 
 #### 3. Build and enter the DeepStream docker container
 ```
-docker build -f <your_path>/retinanet-examples/Dockerfile.deepstream -t ds_retinanet:latest <your_path>/retinanet-examples
-docker run --gpus all -it --rm --ipc=host -v <dir containing your data>:/data ds_retinanet:latest
+docker build -f <your_path>/retinanet-examples/Dockerfile.deepstream -t ds_odtk:latest <your_path>/retinanet-examples
+docker run --gpus all -it --rm --ipc=host -v <dir containing your data>:/data ds_odtk:latest
 ```
 
 #### 4. Export your trained PyTorch RetinaNet model to TensorRT per the [INFERENCE](https://github.com/NVIDIA/retinanet-examples/blob/master/INFERENCE.md) instructions:
 ```
-retinanet export <PyTorch model> <engine> --batch n
+odtk export <PyTorch model> <engine> --batch n
 
 OR
 
-retinanet export <PyTorch model> <engine> --int8 --calibration-images <example images> --batch n
+odtk export <PyTorch model> <engine> --int8 --calibration-images <example images> --batch n
 ```
 
 #### 5. Run deepstream-app
 Once all of the config files have been modified, launch the DeepStream application: 
 ```
 cd /workspace/retinanet-examples/extras/deepstream/deepstream-sample/
-LD_PRELOAD=build/libnvdsparsebbox_retinanet.so deepstream-app -c <config file>
+LD_PRELOAD=build/libnvdsparsebbox_odtk.so deepstream-app -c <config file>
 ```
 
 ## Jetson AGX Xavier
@@ -56,7 +56,7 @@ Setup instructions.
 #### 2. (on host) Covert PyTorch model to ONNX.
 
 ```bash
-retinanet export model.pth model.onnx
+odtk export model.pth model.onnx
 ```
 
 #### 3. Copy ONNX RetinaNet model and config files to Jetson Xavier
@@ -94,7 +94,7 @@ As described in the "preparing the DeepStream config file" section below.
 Once all of the config files have been modified, launch the DeepStream application: 
 ```
 cd extras/deepstream/deepstream-sample
-LD_PRELOAD=build/libnvdsparsebbox_retinanet.so deepstream-app -c <config file>
+LD_PRELOAD=build/libnvdsparsebbox_odtk.so deepstream-app -c <config file>
 ```
 
 ## Preparing the DeepStream config file:

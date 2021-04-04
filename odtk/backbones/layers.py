@@ -11,7 +11,7 @@ class FixedBatchNorm2d(nn.Module):
         self.register_buffer("bias", torch.zeros(n))
         self.register_buffer("running_mean", torch.zeros(n))
         self.register_buffer("running_var", torch.ones(n))
-        
+
     def forward(self, x):
         return F.batch_norm(x, running_mean=self.running_mean, running_var=self.running_var, weight=self.weight, bias=self.bias)
 

@@ -35,7 +35,7 @@ using namespace nvinfer1;
 #define RETINANET_PLUGIN_VERSION "1"
 #define RETINANET_PLUGIN_NAMESPACE ""
 
-namespace retinanet {
+namespace odtk {
 
 class DecodePlugin : public IPluginV2DynamicExt {
   float _score_thresh;

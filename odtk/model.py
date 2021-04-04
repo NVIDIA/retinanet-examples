@@ -33,6 +33,8 @@ class Model(nn.Module):
 
         self.backbones = nn.ModuleDict({b: getattr(backbones_mod, b)() for b in backbones})
         self.name = 'RetinaNet'
+        self.unused_modules = []
+        for b in backbones: self.unused_modules.extend(getattr(self.backbones, b).features.unused_modules)
         self.exporting = False
         self.rotated_bbox = rotated_bbox
         self.anchor_ious = anchor_ious
@@ -155,7 +157,7 @@ class Model(nn.Module):
                 self.anchors[stride] = generate_anchors(stride, self.ratios, self.scales, self.angles)
 
             # Decode and filter boxes
-            decoded.append(decode(cls_head, box_head, stride, self.threshold, 
+            decoded.append(decode(cls_head.contiguous(), box_head.contiguous(), stride, self.threshold, 
                                 self.top_n, self.anchors[stride], self.rotated_bbox))
 
         # Perform non-maximum suppression
@@ -252,16 +254,16 @@ class Model(nn.Module):
 
     def export(self, size, dynamic_batch_opts, precision, calibration_files, calibration_table, verbose, onnx_only=False):
 
-        import torch.onnx.symbolic_opset11 as onnx_symbolic
-        def upsample_nearest2d(g, input, output_size, *args):
-            # Currently, TRT 7.1 ONNX Parser does not support all ONNX ops
-            # needed to support dynamic upsampling ONNX forumlation
-            # Here we hardcode scale=2 as a temporary workaround
-            scales = g.op("Constant", value_t=torch.tensor([1., 1., 2., 2.]))
-            empty_tensor = g.op("Constant", value_t=torch.tensor([], dtype=torch.float32))
-            return g.op("Resize", input, empty_tensor, scales, mode_s="nearest", nearest_mode_s="floor")
+        # import torch.onnx.symbolic_opset11 as onnx_symbolic
+        # def upsample_nearest2d(g, input, output_size, *args):
+        #     # Currently, TRT 7.1 ONNX Parser does not support all ONNX ops
+        #     # needed to support dynamic upsampling ONNX forumlation
+        #     # Here we hardcode scale=2 as a temporary workaround
+        #     scales = g.op("Constant", value_t=torch.tensor([1., 1., 2., 2.]))
+        #     empty_tensor = g.op("Constant", value_t=torch.tensor([], dtype=torch.float32))
+        #     return g.op("Resize", input, empty_tensor, scales, mode_s="nearest", nearest_mode_s="floor")
 
-        onnx_symbolic.upsample_nearest2d = upsample_nearest2d
+        # onnx_symbolic.upsample_nearest2d = upsample_nearest2d
 
         # Export to ONNX
         print('Exporting to ONNX...')
@@ -274,7 +276,7 @@ class Model(nn.Module):
         dynamic_axes = {input_names[0]: {0:'batch'}}
         for _, name in enumerate(output_names):
             dynamic_axes[name] = dynamic_axes[input_names[0]]
-        extra_args = {'opset_version': 11, 'verbose': verbose,
+        extra_args = {'opset_version': 12, 'verbose': verbose,
                       'input_names': input_names, 'output_names': output_names,
                       'dynamic_axes': dynamic_axes} 
         torch.onnx.export(self.cuda(), zero_input, onnx_bytes, **extra_args)

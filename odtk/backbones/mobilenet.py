@@ -10,6 +10,7 @@ class MobileNet(vmn.MobileNetV2):
         self.url = url
         super().__init__()
         self.outputs = outputs
+        self.unused_modules = ['features.18', 'classifier']
 
     def initialize(self):
         if self.url:

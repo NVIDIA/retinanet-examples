@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	cout << "Loading engine..." << endl;
-	auto engine = retinanet::Engine(argv[1]);
+	auto engine = odtk::Engine(argv[1]);
 	VideoCapture src(argv[2]);
 
 	if (!src.isOpened()){

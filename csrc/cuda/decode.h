@@ -24,7 +24,7 @@
 
 #include <vector>
 
-namespace retinanet {
+namespace odtk {
 namespace cuda {
 
 int decode(int batch_size,

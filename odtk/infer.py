@@ -4,7 +4,8 @@ import tempfile
 from contextlib import redirect_stdout
 import torch
 from apex import amp
-from apex.parallel import DistributedDataParallel as DDP
+from apex.parallel import DistributedDataParallel as ADDP
+from torch.nn.parallel import DistributedDataParallel
 from pycocotools.cocoeval import COCOeval
 import numpy as np
 
@@ -15,9 +16,10 @@ from .utils import Profiler, rotate_box
 
 
 def infer(model, path, detections_file, resize, max_size, batch_size, mixed_precision=True, is_master=True, world=0,
-          annotations=None, use_dali=True, is_validation=False, verbose=True, rotated_bbox=False):
+          annotations=None, no_apex=False, use_dali=True, is_validation=False, verbose=True, rotated_bbox=False):
     'Run inference on images from path'
 
+    DDP = DistributedDataParallel if no_apex else ADDP
     backend = 'pytorch' if isinstance(model, Model) or isinstance(model, DDP) else 'tensorrt'
 
     stride = model.module.stride if isinstance(model, DDP) else model.stride
@@ -44,15 +46,16 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
     if verbose: print(data_iterator)
 
     # Prepare model
-    if backend is 'pytorch':
+    if backend == 'pytorch':
         # If we are doing validation during training,
         # no need to register model with AMP again
         if not is_validation:
-            if torch.cuda.is_available(): model = model.cuda()
-            model = amp.initialize(model, None,
-                                   opt_level='O2' if mixed_precision else 'O0',
-                                   keep_batchnorm_fp32=True,
-                                   verbosity=0)
+            if torch.cuda.is_available(): model = model.to(memory_format=torch.channels_last).cuda()
+            if ~no_apex:
+                model = amp.initialize(model, None,
+                                    opt_level='O2' if mixed_precision else 'O0',
+                                    keep_batchnorm_fp32=True,
+                                    verbosity=0)
 
         model.eval()
 
@@ -61,7 +64,7 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
         print('    device: {} {}'.format(
             world, 'cpu' if not torch.cuda.is_available() else 'GPU' if world == 1 else 'GPUs'))
         print('     batch: {}, precision: {}'.format(batch_size,
-                                                     'unknown' if backend is 'tensorrt' else 'mixed' if mixed_precision else 'full'))
+                                                     'unknown' if backend == 'tensorrt' else 'mixed' if mixed_precision else 'full'))
         print(' BBOX type:', 'rotated' if rotated_bbox else 'axis aligned')
         print('Running inference...')
 
@@ -70,6 +73,7 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
     with torch.no_grad():
         for i, (data, ids, ratios) in enumerate(data_iterator):
             # Forward pass
+            if backend=='pytorch': data = data.contiguous(memory_format=torch.channels_last)
             profiler.start('fw')
             scores, boxes, classes = model(data, rotated_bbox) #Need to add model size (B, 3, W, H)
             profiler.stop('fw')
@@ -110,7 +114,7 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
                 continue
             processed_ids.add(image_id)
 
-            keep = (scores > 0).nonzero()
+            keep = (scores > 0).nonzero(as_tuple=False)
             scores = scores[keep].view(-1)
             if rotated_bbox:
                 boxes = boxes[keep, :].view(-1, 6)
@@ -166,7 +170,7 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
                     coco_eval.evaluate()
                     coco_eval.accumulate()
                 coco_eval.summarize()
-                return coco_eval.stats[0] # mAP
+                return coco_eval.stats # mAP and mAR
         else:
             print('No detections!')
     return 0

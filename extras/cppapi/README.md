@@ -25,7 +25,7 @@ make
 ```bash
 mkdir build && cd build
 cmake -G "Visual Studio 15 2017" -A x64 -T host=x64,cuda=10.0 -DTensorRT_DIR="C:\path\to\tensorrt" -DOpenCV_DIR="C:\path\to\opencv\build" ..
-msbuild retinanet_infer.sln
+msbuild odtk_infer.sln
 ```
 
 ## Running
