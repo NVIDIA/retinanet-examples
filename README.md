@@ -25,14 +25,14 @@ The detection pipeline allows the user to select a specific backbone depending o
 
 ODTK **RetinaNet** model accuracy and inference latency & FPS (frames per seconds) for [COCO 2017](http://cocodataset.org/#detection-2017) (train/val) after full training schedule. Inference results include bounding boxes post-processing for a batch size of 1. Inference measured at `--resize 800` using `--with-dali` on a FP16 TensorRT engine.
 
-Backbone |  mAP @[IoU=0.50:0.95] | Training Time on [DGX1v](https://www.nvidia.com/en-us/data-center/dgx-1/) | Inference latency FP16 on [V100](https://www.nvidia.com/en-us/data-center/tesla-v100/) | Inference latency INT8 on [T4](https://www.nvidia.com/en-us/data-center/tesla-t4/)
---- | :---: | :---: | :---: | :---:
-[ResNet18FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/19.04/retinanet_rn18fpn.zip) | 0.318 | 5 hrs  | 14 ms; 71 FPS | 18 ms; 56 FPS
-[MobileNetV2FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/v0.2.3/retinanet_mobilenetv2fpn.pth) | 0.333 | | 14 ms; 74 FPS | 18 ms; 56 FPS
-[ResNet34FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/19.04/retinanet_rn34fpn.zip) | 0.343 | 6 hrs  | 16 ms; 64 FPS | 20 ms; 50 FPS
-[ResNet50FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/19.04/retinanet_rn50fpn.zip) | 0.358 | 7 hrs  | 18 ms; 56 FPS | 22 ms; 45 FPS
-[ResNet101FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/19.04/retinanet_rn101fpn.zip) | 0.376 | 10 hrs | 22 ms; 46 FPS | 27 ms; 37 FPS
-[ResNet152FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/19.04/retinanet_rn152fpn.zip) | 0.393 | 12 hrs | 26 ms; 38 FPS | 33 ms; 31 FPS
+Backbone |  mAP @[IoU=0.50:0.95] | Training Time on [DGX1v](https://www.nvidia.com/en-us/data-center/dgx-1/) | Inference latency FP16 on [V100](https://www.nvidia.com/en-us/data-center/tesla-v100/) | Inference latency INT8 on [T4](https://www.nvidia.com/en-us/data-center/tesla-t4/) | Inference latency FP16 on [A100](https://www.nvidia.com/en-us/data-center/a100/) | Inference latency INT8 on [A100](https://www.nvidia.com/en-us/data-center/a100/)
+--- | :---: | :---: | :---: | :---: | :---: | :---:
+[ResNet18FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/19.04/retinanet_rn18fpn.zip) | 0.318 | 5 hrs  | 14 ms;</br>71 FPS | 18 ms;</br>56 FPS | 9 ms;</br>110 FPS | 7 ms;</br>141 FPS
+[MobileNetV2FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/v0.2.3/retinanet_mobilenetv2fpn.pth) | 0.333 | | 14 ms;</br>74 FPS | 18 ms;</br>56 FPS | 9 ms;</br>114 FPS | 7 ms;</br>138 FPS
+[ResNet34FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/19.04/retinanet_rn34fpn.zip) | 0.343 | 6 hrs  | 16 ms;</br>64 FPS | 20 ms;</br>50 FPS | 10 ms;</br>103 FPS | 7 ms;</br>142 FPS
+[ResNet50FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/19.04/retinanet_rn50fpn.zip) | 0.358 | 7 hrs  | 18 ms;</br>56 FPS | 22 ms;</br>45 FPS | 11 ms;</br>93 FPS | 8 ms;</br>129 FPS
+[ResNet101FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/19.04/retinanet_rn101fpn.zip) | 0.376 | 10 hrs | 22 ms;</br>46 FPS | 27 ms;</br>37 FPS | 13 ms;</br>78 FPS | 9 ms;</br>117 FPS
+[ResNet152FPN](https://github.com/NVIDIA/retinanet-examples/releases/download/19.04/retinanet_rn152fpn.zip) | 0.393 | 12 hrs | 26 ms;</br>38 FPS | 33 ms;</br>31 FPS | 15 ms;</br>66 FPS | 10 ms;</br>103 FPS
 
 ## Installation
 

@@ -51,7 +51,7 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
         # no need to register model with AMP again
         if not is_validation:
             if torch.cuda.is_available(): model = model.to(memory_format=torch.channels_last).cuda()
-            if ~no_apex:
+            if not no_apex:
                 model = amp.initialize(model, None,
                                     opt_level='O2' if mixed_precision else 'O0',
                                     keep_batchnorm_fp32=True,
@@ -173,4 +173,5 @@ def infer(model, path, detections_file, resize, max_size, batch_size, mixed_prec
                 return coco_eval.stats # mAP and mAR
         else:
             print('No detections!')
+            return None
     return 0

@@ -209,6 +209,11 @@ class Model(nn.Module):
         box_loss = torch.stack(box_losses).sum() / fg_targets
         return cls_loss, box_loss
 
+    def freeze_unused_params(self):
+        for n, p in self.named_parameters():
+            if any(i in n for i in self.unused_modules):
+                p.requires_grad = False
+
     def save(self, state):
         checkpoint = {
             'backbone': [k for k, _ in self.backbones.items()],
