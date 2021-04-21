@@ -132,14 +132,14 @@ def load_model(args, verbose=False):
                       anchor_ious=args.anchor_ious)
         model.initialize(args.fine_tune)
         # Freeze unused params from training
-        for n, p in model.named_parameters():
-            if any(i in n for i in model.unused_modules):
-                p.requires_grad = False
+        model.freeze_unused_params()
         if verbose: print(model)
 
     elif ext == '.pth' or ext == '.torch':
         if verbose: print('Loading model from {}...'.format(os.path.basename(args.model)))
         model, state = Model.load(filename=args.model, rotated_bbox=args.rotated_bbox)
+        # Freeze unused params from training
+        model.freeze_unused_params()
         if verbose: print(model)
 
     elif args.command == 'infer' and ext in ['.engine', '.plan']:

@@ -1,6 +1,6 @@
 # NVIDIA ODTK change log
 
-## Version 0.2.6 -- 2021-04-04
+## Version 0.2.6 -- 2021-08-11
 
 ### Added
 * `--no-apex` option to `odtk train` and `odtk infer`.
@@ -8,7 +8,7 @@
 * Adding validation stats to TensorBoard.
 
 ### Changed
-* Pytorch Docker container 20.11 from 20.06
+* Pytorch Docker container 21.06 from 20.06
 * Added training and inference support for PyTorch native AMP, and torch.nn.parallel.DistributedDataParallel (use `--no-apex`).
 * Switched the Pytorch Model and Data Memory Format to Channels Last. (see [Memory Format Tutorial](https://pytorch.org/tutorials/intermediate/memory_format_tutorial.html))
 * Bug fixes:
