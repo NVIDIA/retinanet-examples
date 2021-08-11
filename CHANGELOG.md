@@ -1,15 +1,15 @@
 # NVIDIA ODTK change log
 
-## Version 0.2.6 -- 2021-04-04
+## Version 0.2.6 -- 2021-08-11
 
 ### Added
-* `--no-apex` option to `odtk train` and `odtk infer`.
-  * This parameter allows you to switch to Pytorch native AMP and DistributedDataParallel.
+* `--with-apex` option to `odtk train` and `odtk infer`.
+  * This parameter allows you to switch to NVIDIA APEX AMP and DistributedDataParallel.
 * Adding validation stats to TensorBoard.
 
 ### Changed
-* Pytorch Docker container 21.02 from 20.06
-* Added training and inference support for PyTorch native AMP, and torch.nn.parallel.DistributedDataParallel (use `--no-apex`).
+* Pytorch Docker container 21.09 from 20.06
+* Added training and inference support for PyTorch native AMP, and torch.nn.parallel.DistributedDataParallel (default).
 * Switched the Pytorch Model and Data Memory Format to Channels Last. (see [Memory Format Tutorial](https://pytorch.org/tutorials/intermediate/memory_format_tutorial.html))
 * Bug fixes:
   * Workaround for `'No detections!'` during vlidation added. (see [#52663](https://github.com/pytorch/pytorch/issues/52663))

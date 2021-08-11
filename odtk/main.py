@@ -56,7 +56,7 @@ def parse(args):
     parser_train.add_argument('--logdir', metavar='logdir', type=str, help='directory where to write logs')
     parser_train.add_argument('--val-iters', metavar='number', type=int,
                               help='number of iterations between each validation', default=8000)
-    parser_train.add_argument('--no-apex', help='use Pytorch native AMP and DDP', action='store_true')
+    parser_train.add_argument('--with-apex', help='use NVIDIA APEX AMP and DDP', action='store_true')
     parser_train.add_argument('--with-dali', help='use dali for data loading', action='store_true')
     parser_train.add_argument('--augment-rotate', help='use four-fold rotational augmentation', action='store_true')
     parser_train.add_argument('--augment-free-rotate', type=float, metavar='value value', nargs=2, default=[0, 0],
@@ -88,7 +88,7 @@ def parse(args):
     parser_infer.add_argument('--batch', metavar='size', type=int, help='batch size', default=2 * devcount)
     parser_infer.add_argument('--resize', metavar='scale', type=int, help='resize to given size', default=800)
     parser_infer.add_argument('--max-size', metavar='max', type=int, help='maximum resizing size', default=1333)
-    parser_infer.add_argument('--no-apex', help='use Pytorch native AMP and DDP', action='store_true')
+    parser_infer.add_argument('--with-apex', help='use NVIDIA APEX AMP and DDP', action='store_true')
     parser_infer.add_argument('--with-dali', help='use dali for data loading', action='store_true')
     parser_infer.add_argument('--full-precision', help='inference in full precision', action='store_true')
     parser_infer.add_argument('--rotated-bbox', help='inference using a rotated bounding box model',
@@ -176,13 +176,12 @@ def worker(rank, args, world, model, state):
     if args.command == 'train':
         train.train(model, state, args.images, args.annotations,
                     args.val_images or args.images, args.val_annotations, args.resize, args.max_size, args.jitter,
-                    args.batch, int(args.iters * args.schedule), args.val_iters, not args.full_precision, args.lr,
-                    args.warmup, [int(m * args.schedule) for m in args.milestones], args.gamma,
-                    rank, world=world, no_apex=args.no_apex, use_dali=args.with_dali,
+                    args.batch, int(args.iters * args.schedule), args.val_iters, args.lr, args.warmup,
+                    [int(m * args.schedule) for m in args.milestones], args.gamma, rank, world=world,
+                    mixed_precision=not args.full_precision, with_apex=args.with_apex, use_dali=args.with_dali,
                     metrics_url=args.post_metrics, logdir=args.logdir, verbose=(rank == 0),
-                    rotate_augment=args.augment_rotate,
-                    augment_brightness=args.augment_brightness, augment_contrast=args.augment_contrast,
-                    augment_hue=args.augment_hue, augment_saturation=args.augment_saturation,
+                    rotate_augment=args.augment_rotate, augment_brightness=args.augment_brightness,
+                    augment_contrast=args.augment_contrast, augment_hue=args.augment_hue, augment_saturation=args.augment_saturation,
                     regularization_l2=args.regularization_l2, rotated_bbox=args.rotated_bbox, absolute_angle=args.absolute_angle)
 
     elif args.command == 'infer':
@@ -192,7 +191,7 @@ def worker(rank, args, world, model, state):
 
         infer.infer(model, args.images, args.output, args.resize, args.max_size, args.batch,
                     annotations=args.annotations, mixed_precision=not args.full_precision,
-                    is_master=(rank == 0), world=world, no_apex=args.no_apex, use_dali=args.with_dali,
+                    is_master=(rank == 0), world=world, with_apex=args.with_apex, use_dali=args.with_dali,
                     verbose=(rank == 0), rotated_bbox=args.rotated_bbox)
 
     elif args.command == 'export':

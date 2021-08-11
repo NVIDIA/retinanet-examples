@@ -68,13 +68,13 @@ protected:
     read(d, _num_classes);
   }
 
-  size_t getSerializationSize() const override {
+  size_t getSerializationSize() const noexcept override {
     return sizeof(_score_thresh) + sizeof(_top_n)
       + sizeof(size_t) + sizeof(float) * _anchors.size() + sizeof(_scale)
       + sizeof(_height) + sizeof(_width) + sizeof(_num_anchors) + sizeof(_num_classes);
   }
 
-  void serialize(void *buffer) const override {
+  void serialize(void *buffer) const noexcept override {
     char* d = static_cast<char*>(buffer);
     write(d, _score_thresh);
     write(d, _top_n);
@@ -102,20 +102,20 @@ public:
       this->deserialize(data, length);
   }
 
-  const char *getPluginType() const override {
+  const char *getPluginType() const noexcept override {
     return RETINANET_PLUGIN_NAME;
   }
 
-  const char *getPluginVersion() const override {
+  const char *getPluginVersion() const noexcept override {
     return RETINANET_PLUGIN_VERSION;
   }
 
-  int getNbOutputs() const override {
+  int getNbOutputs() const noexcept override {
     return 3;
   }
 
   DimsExprs getOutputDimensions(int outputIndex, const DimsExprs *inputs,
-    int nbInputs, IExprBuilder &exprBuilder) override 
+    int nbInputs, IExprBuilder &exprBuilder) noexcept override 
   {
     DimsExprs output(inputs[0]);
     output.d[1] = exprBuilder.constant(_top_n * (outputIndex == 1 ? 6 : 1));
@@ -127,7 +127,7 @@ public:
 
 
   bool supportsFormatCombination(int pos, const PluginTensorDesc *inOut, 
-    int nbInputs, int nbOutputs) override
+    int nbInputs, int nbOutputs) noexcept override
   {
     assert(nbInputs == 2);
     assert(nbOutputs == 3);
@@ -136,12 +136,12 @@ public:
   }
 
 
-  int initialize() override { return 0; }
+  int initialize() noexcept override { return 0; }
 
-  void terminate() override {}
+  void terminate() noexcept override {}
 
   size_t getWorkspaceSize(const PluginTensorDesc *inputs, 
-    int nbInputs, const PluginTensorDesc *outputs, int nbOutputs) const override 
+    int nbInputs, const PluginTensorDesc *outputs, int nbOutputs) const noexcept override
   {
     if (size < 0) {
       size = cuda::decode_rotate(inputs->dims.d[0], nullptr, nullptr, _height, _width, _scale,
@@ -153,31 +153,31 @@ public:
 
   int enqueue(const PluginTensorDesc *inputDesc, 
     const PluginTensorDesc *outputDesc, const void *const *inputs, 
-    void *const *outputs, void *workspace, cudaStream_t stream) override 
+    void *const *outputs, void *workspace, cudaStream_t stream) noexcept override
   {
     return cuda::decode_rotate(inputDesc->dims.d[0], inputs, outputs, _height, _width, _scale,
       _num_anchors, _num_classes, _anchors, _score_thresh, _top_n,
       workspace, getWorkspaceSize(inputDesc, 2, outputDesc, 3), stream);
   }
 
-  void destroy() override {
+  void destroy() noexcept override {
     delete this;
   };
 
-  const char *getPluginNamespace() const override {
+  const char *getPluginNamespace() const noexcept override {
     return RETINANET_PLUGIN_NAMESPACE;
   }
 
-  void setPluginNamespace(const char *N) override {}
+  void setPluginNamespace(const char *N) noexcept override {}
 
-  DataType getOutputDataType(int index, const DataType* inputTypes, int nbInputs) const
+  DataType getOutputDataType(int index, const DataType* inputTypes, int nbInputs) const noexcept
   {
     assert(index < 3);
     return DataType::kFLOAT;
   }
 
   void configurePlugin(const DynamicPluginTensorDesc *in, int nbInputs, 
-    const DynamicPluginTensorDesc *out, int nbOutputs)
+    const DynamicPluginTensorDesc *out, int nbOutputs) noexcept
   {
     assert(nbInputs == 2);
     assert(nbOutputs == 3);
@@ -191,7 +191,7 @@ public:
     _num_classes = scores_dims.d[1] / _num_anchors;
   }
 
-  IPluginV2DynamicExt *clone() const override {
+  IPluginV2DynamicExt *clone() const noexcept override {
     return new DecodeRotatePlugin(_score_thresh, _top_n, _anchors, _scale, _height, _width, 
       _num_anchors, _num_classes);
   }
@@ -212,25 +212,25 @@ class DecodeRotatePluginCreator : public IPluginCreator {
 public:
   DecodeRotatePluginCreator() {}
 
-  const char *getPluginName () const override {
+  const char *getPluginName () const noexcept override {
     return RETINANET_PLUGIN_NAME;
   }
 
-  const char *getPluginVersion () const override {
+  const char *getPluginVersion () const noexcept override {
     return RETINANET_PLUGIN_VERSION;
   }
  
-  const char *getPluginNamespace() const override {
+  const char *getPluginNamespace() const noexcept override {
     return RETINANET_PLUGIN_NAMESPACE;
   }
 
-  IPluginV2DynamicExt *deserializePlugin (const char *name, const void *serialData, size_t serialLength) override {
+  IPluginV2DynamicExt *deserializePlugin (const char *name, const void *serialData, size_t serialLength) noexcept override {
     return new DecodeRotatePlugin(serialData, serialLength);
   }
 
-  void setPluginNamespace(const char *N) override {}
-  const PluginFieldCollection *getFieldNames() override { return nullptr; }
-  IPluginV2DynamicExt *createPlugin (const char *name, const PluginFieldCollection *fc) override { return nullptr; }
+  void setPluginNamespace(const char *N) noexcept override {}
+  const PluginFieldCollection *getFieldNames() noexcept override { return nullptr; }
+  IPluginV2DynamicExt *createPlugin (const char *name, const PluginFieldCollection *fc) noexcept override { return nullptr; }
 };
 
 REGISTER_TENSORRT_PLUGIN(DecodeRotatePluginCreator);

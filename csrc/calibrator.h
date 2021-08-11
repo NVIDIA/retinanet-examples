@@ -46,11 +46,11 @@ public:
         _batch.resize(_batchSize * _inputDims.d[1] * _inputDims.d[2] * _inputDims.d[3]);
     }
 
-    int getBatchSize() const { return _batchSize;}
+    int getBatchSize() const noexcept { return _batchSize;}
 
     int getMaxBatches() const { return _maxBatches;}
 
-    float* getBatch() { return &_batch[0];}
+    float* getBatch() noexcept { return &_batch[0];}
 
     Dims getInputDims() { return _inputDims;}
 
@@ -116,11 +116,11 @@ public:
             cudaMalloc(&_deviceInput, _inputCount * sizeof(float));
         }
 
-    int getBatchSize() const override {return _stream.getBatchSize();}
+    int getBatchSize() const noexcept override {return _stream.getBatchSize();}
 
     virtual ~Int8EntropyCalibrator() {cudaFree(_deviceInput);}
 
-    bool getBatch(void* bindings[], const char* names[], int nbBindings) override {
+    bool getBatch(void* bindings[], const char* names[], int nbBindings) noexcept override {
 
         if (!_stream.next())
             return false;
@@ -130,7 +130,7 @@ public:
         return true;
     }
 
-    const void* readCalibrationCache(size_t& length) { 
+    const void* readCalibrationCache(size_t& length) noexcept { 
         _calibrationCache.clear();
         ifstream input(calibrationTableName(), ios::binary);
         input >> noskipws;
@@ -141,7 +141,7 @@ public:
         return length ? &_calibrationCache[0] : nullptr;
     }
 
-    void writeCalibrationCache(const void* cache, size_t length) {
+    void writeCalibrationCache(const void* cache, size_t length) noexcept {
         std::ofstream output(calibrationTableName(), std::ios::binary);
         output.write(reinterpret_cast<const char*>(cache), length);
     }

@@ -52,12 +52,12 @@ protected:
     read(d, _count);
   }
 
-  size_t getSerializationSize() const override {
+  size_t getSerializationSize() const noexcept override {
     return sizeof(_nms_thresh) + sizeof(_detections_per_im)
       + sizeof(_count);
   }
 
-  void serialize(void *buffer) const override {
+  void serialize(void *buffer) const noexcept override {
     char* d = static_cast<char*>(buffer);
     write(d, _nms_thresh);
     write(d, _detections_per_im);
@@ -82,20 +82,20 @@ public:
     this->deserialize(data, length);
   }
 
-  const char *getPluginType() const override {
+  const char *getPluginType() const noexcept override {
     return RETINANET_PLUGIN_NAME;
   }
  
-  const char *getPluginVersion() const override {
+  const char *getPluginVersion() const noexcept override {
     return RETINANET_PLUGIN_VERSION;
   }
   
-  int getNbOutputs() const override {
+  int getNbOutputs() const noexcept override {
     return 3;
   }
 
   DimsExprs getOutputDimensions(int outputIndex, const DimsExprs *inputs,
-    int nbInputs, IExprBuilder &exprBuilder) override 
+    int nbInputs, IExprBuilder &exprBuilder) noexcept override
   {
     DimsExprs output(inputs[0]);
     output.d[1] = exprBuilder.constant(_detections_per_im * (outputIndex == 1 ? 6 : 1));
@@ -105,7 +105,7 @@ public:
   }
 
   bool supportsFormatCombination(int pos, const PluginTensorDesc *inOut, 
-    int nbInputs, int nbOutputs) override
+    int nbInputs, int nbOutputs) noexcept override
   {
     assert(nbInputs == 3);
     assert(nbOutputs == 3);
@@ -113,12 +113,12 @@ public:
     return inOut[pos].type == DataType::kFLOAT && inOut[pos].format == nvinfer1::PluginFormat::kLINEAR;
   }
 
-  int initialize() override { return 0; }
+  int initialize() noexcept override { return 0; }
 
-  void terminate() override {}
+  void terminate() noexcept override {}
 
   size_t getWorkspaceSize(const PluginTensorDesc *inputs, 
-    int nbInputs, const PluginTensorDesc *outputs, int nbOutputs) const override 
+    int nbInputs, const PluginTensorDesc *outputs, int nbOutputs) const noexcept override
   {
     if (size < 0) {
       size = cuda::nms_rotate(inputs->dims.d[0], nullptr, nullptr, _count, 
@@ -130,24 +130,24 @@ public:
 
   int enqueue(const PluginTensorDesc *inputDesc, 
     const PluginTensorDesc *outputDesc, const void *const *inputs, 
-    void *const *outputs, void *workspace, cudaStream_t stream) override 
+    void *const *outputs, void *workspace, cudaStream_t stream) noexcept override 
   {
     return cuda::nms_rotate(inputDesc->dims.d[0], inputs, outputs, _count, 
       _detections_per_im, _nms_thresh,
       workspace, getWorkspaceSize(inputDesc, 3, outputDesc, 3), stream);
   }
 
-  void destroy() override {
+  void destroy() noexcept override {
     delete this;
   }
 
-  const char *getPluginNamespace() const override {
+  const char *getPluginNamespace() const noexcept override {
     return RETINANET_PLUGIN_NAMESPACE;
   }
   
-  void setPluginNamespace(const char *N) override {}
+  void setPluginNamespace(const char *N) noexcept override {}
 
-  DataType getOutputDataType(int index, const DataType* inputTypes, int nbInputs) const
+  DataType getOutputDataType(int index, const DataType* inputTypes, int nbInputs) const noexcept
   {
     assert(index < 3);
     return DataType::kFLOAT;
@@ -155,7 +155,7 @@ public:
 
 
   void configurePlugin(const DynamicPluginTensorDesc *in, int nbInputs, 
-    const DynamicPluginTensorDesc *out, int nbOutputs)
+    const DynamicPluginTensorDesc *out, int nbOutputs) noexcept
   {
     assert(nbInputs == 3);
     assert(in[0].desc.dims.d[1] == in[2].desc.dims.d[1]);
@@ -163,7 +163,7 @@ public:
     _count = in[0].desc.dims.d[1];
   }
 
-  IPluginV2DynamicExt *clone() const {
+  IPluginV2DynamicExt *clone() const noexcept override {
     return new NMSRotatePlugin(_nms_thresh, _detections_per_im, _count);
   }
 
@@ -183,24 +183,24 @@ class NMSRotatePluginCreator : public IPluginCreator {
 public:
   NMSRotatePluginCreator() {}
   
-  const char *getPluginNamespace() const override {
+  const char *getPluginNamespace() const noexcept override {
     return RETINANET_PLUGIN_NAMESPACE;
   }
-  const char *getPluginName () const override {
+  const char *getPluginName () const noexcept override {
     return RETINANET_PLUGIN_NAME;
   }
 
-  const char *getPluginVersion () const override {
+  const char *getPluginVersion () const noexcept override {
     return RETINANET_PLUGIN_VERSION;
   }
  
-  IPluginV2DynamicExt *deserializePlugin (const char *name, const void *serialData, size_t serialLength) override {
+  IPluginV2DynamicExt *deserializePlugin (const char *name, const void *serialData, size_t serialLength) noexcept override {
     return new NMSRotatePlugin(serialData, serialLength);
   }
 
-  void setPluginNamespace(const char *N) override {}
-  const PluginFieldCollection *getFieldNames() override { return nullptr; }
-  IPluginV2DynamicExt *createPlugin (const char *name, const PluginFieldCollection *fc) override { return nullptr; }
+  void setPluginNamespace(const char *N) noexcept override {}
+  const PluginFieldCollection *getFieldNames() noexcept override { return nullptr; }
+  IPluginV2DynamicExt *createPlugin (const char *name, const PluginFieldCollection *fc) noexcept override { return nullptr; }
 };
 
 REGISTER_TENSORRT_PLUGIN(NMSRotatePluginCreator);

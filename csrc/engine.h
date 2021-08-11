@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -68,9 +69,10 @@ public:
     int getStride();
     
 private:
-    IRuntime *_runtime = nullptr;
-    ICudaEngine *_engine = nullptr;
-    IExecutionContext *_context = nullptr;
+    std::unique_ptr<IRuntime> _runtime;
+    std::unique_ptr<ICudaEngine> _engine;
+    std::unique_ptr<IHostMemory> _plan;
+    std::unique_ptr<IExecutionContext> _context;
     cudaStream_t _stream = nullptr;
 
     void _load(const string &path);

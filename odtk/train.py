@@ -16,8 +16,8 @@ from .infer import infer
 
 
 def train(model, state, path, annotations, val_path, val_annotations, resize, max_size, jitter, batch_size, iterations,
-          val_iterations, mixed_precision, lr, warmup, milestones, gamma, rank=0, world=1, no_apex=False, use_dali=True,
-          verbose=True, metrics_url=None, logdir=None, rotate_augment=False, augment_brightness=0.0,
+          val_iterations, lr, warmup, milestones, gamma, rank=0, world=1, mixed_precision=True, with_apex=False,
+          use_dali=True, verbose=True, metrics_url=None, logdir=None, rotate_augment=False, augment_brightness=0.0,
           augment_contrast=0.0, augment_hue=0.0, augment_saturation=0.0, regularization_l2=0.0001, rotated_bbox=False,
           absolute_angle=False):
     'Train the model on the given dataset'
@@ -34,7 +34,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
     optimizer = SGD(model.parameters(), lr=lr, weight_decay=regularization_l2, momentum=0.9)
 
     is_master = rank==0
-    if not no_apex:
+    if with_apex:
         loss_scale = "dynamic" if use_dali else "128.0"
         model, optimizer = amp.initialize(model, optimizer,
                                         opt_level='O2' if mixed_precision else 'O0',
@@ -43,7 +43,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
                                         verbosity=is_master)
 
     if world > 1:
-        model = DDP(model, device_ids=[rank]) if no_apex else ADDP(model)
+        model = DDP(model, device_ids=[rank]) if not with_apex else ADDP(model)
     model.train()
 
     if 'optimizer' in state:
@@ -88,7 +88,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
             print('Writing TensorBoard logs to: {}'.format(logdir))
         writer = SummaryWriter(log_dir=logdir)
 
-    scaler = GradScaler()
+    scaler = GradScaler(enabled=mixed_precision)
     profiler = Profiler(['train', 'fw', 'bw'])
     iteration = state.get('iteration', 0)
     while iteration < iterations:
@@ -101,17 +101,17 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
             profiler.start('fw')
 
             optimizer.zero_grad()
-            if not no_apex:
+            if with_apex:
                 cls_loss, box_loss = model([data.contiguous(memory_format=torch.channels_last), target])
             else:
-                with autocast():
+                with autocast(enabled=mixed_precision):
                     cls_loss, box_loss = model([data.contiguous(memory_format=torch.channels_last), target])
             del data
             profiler.stop('fw')
 
             # Backward pass
             profiler.start('bw')
-            if not no_apex:
+            if with_apex:
                 with amp.scale_loss(cls_loss + box_loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
                 optimizer.step()
@@ -185,7 +185,7 @@ def train(model, state, path, annotations, val_path, val_annotations, resize, ma
             if val_annotations and (iteration == iterations or iteration % val_iterations == 0):
                 stats = infer(model, val_path, None, resize, max_size, batch_size, annotations=val_annotations,
                             mixed_precision=mixed_precision, is_master=is_master, world=world, use_dali=use_dali,
-                            no_apex=no_apex, is_validation=True, verbose=False, rotated_bbox=rotated_bbox)
+                            with_apex=with_apex, is_validation=True, verbose=False, rotated_bbox=rotated_bbox)
                 model.train()
                 if is_master and logdir is not None and stats is not None:
                     writer.add_scalar(
